@@ -12,7 +12,7 @@ export default function GuideframeClient() {
         margin={8}
         gutter={8}
         forceVisibleInProduction={true}
-        // defaultVisible={false}
+        defaultVisible={false}
       />
     </>
   );

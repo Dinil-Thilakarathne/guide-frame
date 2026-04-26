@@ -5,7 +5,6 @@ import {
   CodeBlockPre,
 } from "@/components/code-block/code-block";
 import { InternalCodeBlock } from "@/components/code-block/internal-code-block";
-import PosthogTestButton from "@/components/posthog-test-button";
 import TrackableOutboundLink from "@/components/trackable-outbound-link";
 
 const installCommand = "npm install @guideframe/react";
@@ -110,7 +109,6 @@ export default function Page() {
             <p className="text-foreground-main text-lg leading-relaxed">
               A React overlay for visual layout grids in the browser.
             </p>
-            <PosthogTestButton />
           </div>
         </div>
 
