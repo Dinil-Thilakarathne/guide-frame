@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@guideframe/react": ["../../packages/react/src"]
+    }
+  },
+  "include": ["src", "vite.config.ts"]
+}
