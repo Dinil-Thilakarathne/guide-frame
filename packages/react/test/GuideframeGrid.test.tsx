@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GuideframeGrid } from "../src";
 
@@ -14,6 +15,17 @@ beforeEach(() => {
 });
 
 describe("GuideframeGrid", () => {
+  it("renders the same initial markup on the server and client", () => {
+    const serverMarkup = renderToString(<GuideframeGrid />);
+    expect(serverMarkup).toContain('data-testid="guideframe-grid"');
+    expect(serverMarkup).toContain("repeat(12, minmax(0, 1fr))");
+
+    const { container } = render(<GuideframeGrid />);
+    expect(container.innerHTML).toContain("repeat(12, minmax(0, 1fr))");
+    expect(container.innerHTML).toContain('data-testid="guideframe-overlay"');
+    expect(container.innerHTML).toContain('data-testid="guideframe-grid"');
+  });
+
   it("renders the default desktop grid", () => {
     render(<GuideframeGrid />);
     expect(screen.getByTestId("guideframe-grid")).toBeInTheDocument();
@@ -63,5 +75,18 @@ describe("GuideframeGrid", () => {
     localStorage.setItem("test-visible", "true");
     render(<GuideframeGrid storageKey="test-visible" defaultVisible={false} />);
     expect(screen.getByTestId("guideframe-grid")).toBeInTheDocument();
+  });
+
+  it("updates breakpoint after mount", async () => {
+    Object.defineProperty(window, "innerWidth", {
+      configurable: true,
+      value: 1440,
+      writable: true,
+    });
+
+    const { findByTestId } = render(<GuideframeGrid />);
+    expect(await findByTestId("guideframe-grid")).toHaveStyle({
+      gridTemplateColumns: "repeat(12, minmax(0, 1fr))",
+    });
   });
 });

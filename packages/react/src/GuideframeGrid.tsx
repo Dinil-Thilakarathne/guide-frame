@@ -53,9 +53,7 @@ function getBreakpoint(
 }
 
 function useWindowWidth() {
-  const [width, setWidth] = useState(() =>
-    typeof window === "undefined" ? 0 : window.innerWidth,
-  );
+  const [width, setWidth] = useState<number | null>(null);
 
   useEffect(() => {
     const update = () => setWidth(window.innerWidth);
@@ -155,7 +153,8 @@ export function GuideframeGrid({
 
   const mergedBreakpoints = { ...DEFAULT_BREAKPOINTS, ...breakpoints };
   const width = useWindowWidth();
-  const breakpoint = activeBreakpoint ?? getBreakpoint(width, mergedBreakpoints);
+  const breakpoint =
+    activeBreakpoint ?? (width === null ? "desktop" : getBreakpoint(width, mergedBreakpoints));
   const [isVisible, setIsVisible] = useLocalVisible(
     storageKey,
     defaultVisible,
