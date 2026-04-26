@@ -44,6 +44,11 @@ next-env.d.ts
 
 # SKILLS
 .agents
+.claude
 
 
 .vscode
+
+
+#posthog
+posthog-setup-report.md

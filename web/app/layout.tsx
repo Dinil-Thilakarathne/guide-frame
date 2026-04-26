@@ -4,7 +4,7 @@ import { fontSatoshi, HelveticaNeue } from "@/fonts";
 import { getAbsoluteUrl, getSiteUrl } from "@/lib/site";
 import "./globals.css";
 import { PostHogProvider } from "./providers";
-import GuideframeClient from "./guideframe-client";
+import GuideframeClient from "../components/common/guideframe-client";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

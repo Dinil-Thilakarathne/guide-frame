@@ -13,7 +13,9 @@ if (
   posthog.init(process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN, {
     api_host:
       process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    defaults: "2026-01-30",
     capture_pageview: false,
+    capture_exceptions: true,
     loaded: (posthog_instance) => {
       if (process.env.NODE_ENV === "development") {
         posthog_instance.opt_out_capturing();
@@ -38,7 +40,7 @@ function PostHogPageView() {
       $current_url: window.location.href,
       pathname,
       page_url: url,
-      page_name: "sona-clean landing page",
+      page_name: "guideframe_landing_page",
     });
   }, [pathname, searchParams]);
 

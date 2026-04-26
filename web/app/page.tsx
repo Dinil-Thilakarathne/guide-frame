@@ -5,6 +5,7 @@ import {
   CodeBlockPre,
 } from "@/components/code-block/code-block";
 import { InternalCodeBlock } from "@/components/code-block/internal-code-block";
+import PosthogTestButton from "@/components/posthog-test-button";
 import TrackableOutboundLink from "@/components/trackable-outbound-link";
 
 const installCommand = "npm install @guideframe/react";
@@ -109,13 +110,14 @@ export default function Page() {
             <p className="text-foreground-main text-lg leading-relaxed">
               A React overlay for visual layout grids in the browser.
             </p>
+            <PosthogTestButton />
           </div>
         </div>
 
         <p className="max-w-xl text-balance leading-7">
-          GuideFrame adds a simple Figma-style grid to your app so you can
-          check spacing, alignment, and composition without guessing from
-          static mocks alone.
+          GuideFrame adds a simple Figma-style grid to your app so you can check
+          spacing, alignment, and composition without guessing from static mocks
+          alone.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -212,7 +214,9 @@ export default function Page() {
               key={item.platform}
               className="border-border bg-background rounded-2xl border p-4"
             >
-              <p className="text-foreground-main font-medium">{item.platform}</p>
+              <p className="text-foreground-main font-medium">
+                {item.platform}
+              </p>
               <p className="text-foreground-main mt-1 font-mono text-lg tracking-[-0.03em]">
                 {item.shortcut}
               </p>

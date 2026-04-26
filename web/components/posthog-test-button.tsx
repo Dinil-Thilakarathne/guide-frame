@@ -2,17 +2,19 @@
 
 import { usePostHog } from "posthog-js/react";
 
-export default function CheckoutPage() {
+export default function PosthogTestButton() {
   const posthog = usePostHog();
 
-  function handlePurchase() {
-    posthog.capture("purchase_completed", { amount: 99 });
-    console.log("clicked");
+  function handleClick() {
+    posthog.capture("landing_cta_clicked", {
+      page_name: "guideframe_landing_page",
+      section: "hero",
+    });
   }
 
   return (
-    <button type="submit" onClick={handlePurchase}>
-      Complete purchase
+    <button type="submit" onClick={handleClick}>
+      Test posthog connection
     </button>
   );
 }

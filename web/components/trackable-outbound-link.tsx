@@ -24,7 +24,7 @@ export default function TrackableOutboundLink({
         posthog.capture("landing_outbound_link_clicked", {
           destination: analyticsLabel,
           href,
-          page_name: "sona-clean landing page",
+          page_name: "guideframe_landing_page",
         });
       }}
       className={className}
