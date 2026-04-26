@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+@custom-variant mobile (@media (max-width: 768px) and (pointer: coarse));
+
+/* Theme color-scheme setup */
+html {
+  color-scheme: light only;
+  background: var(--color-background);
+}
+
+:root {
+  --background: oklch(0.977 0.0012 240.3);
+  --foreground-main: oklch(0.2041 0.0028 240.48);
+  --foreground-secondary: oklch(0.5362 0.0064 240.45);
+
+  --hover-state: oklch(94.007% 0.00011 271.152);
+
+  --border: oklch(90.67% 0.0001 271.152);
+
+  --border-hover: oklch(0.7484 0.0044 240.36);
+
+  /* Derived shadow colors */
+  --shadow-color: oklch(40% 0.02 271 / 0.12);
+
+  --shadow-sm: 0 2px 6px var(--shadow-color);
+  --shadow-md: 0 10px 25px var(--shadow-color);
+  --shadow-lg: 0 20px 50px var(--shadow-color);
+
+  --shadow-hover-color: oklch(35% 0.03 240 / 0.18);
+
+  --shadow-hover-sm: 0 4px 12px var(--shadow-hover-color);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground-main: var(--foreground-main);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-hover-state: var(--hover-state);
+  --color-border: var(--border);
+  --color-border-hover: var(--border-hover);
+
+  --shadow-color: var(--shadow-color);
+  --shadow-sm-custom: var(--shadow-sm);
+  --shadow-md-custom: var(--shadow-md);
+  --shadow-lg-custom: var(--shadow-lg);
+  --shadow-hover-sm: var(--shadow-hover-sm);
+
+  --font-helvetica-neue: var(--font-helvetica-neue);
+  --font-satoshi: var(--font-satoshi);
+
+  /* custom z-indexes */
+  --z-image-popup: 99999;
+  --z-toc: 99998;
+  --z-toc-overlay: 99997;
+  --z-blur: 99996;
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground-secondary);
+  font-family: var(--font-satoshi);
+}
+
+html {
+  ::view-transition-old(popup-image),
+  ::view-transition-new(popup-image) {
+    animation-duration: 350ms;
+    animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: 350ms;
+  }
+}
+
+@layer utilities {
+  .truncate-text {
+    @apply overflow-hidden text-ellipsis whitespace-nowrap;
+  }
+
+  .trim-text {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .focus-ring {
+    @apply focus-visible:ring-foreground-main/40 focus-visible:ring-1 focus-visible:outline-none;
+  }
+
+  .focus-none {
+    @apply focus-within:outline-none focus-visible:ring-0 focus-visible:outline-none;
+  }
+}
