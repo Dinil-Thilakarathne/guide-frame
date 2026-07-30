@@ -14,17 +14,27 @@ export function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <GuideframeGrid />
+        <GuideframeGrid rulers />
         {children}
       </body>
     </html>
   );
 }`;
 
+const coreUsageCommand = `import { createGuideframe } from "@guideframe/core";
+
+const guideframe = createGuideframe({
+  columns: { desktop: 12, tablet: 8, mobile: 4 },
+  rulers: true,
+});
+
+// on teardown
+guideframe.destroy();`;
+
 const quickFacts = [
-  "Adds a Figma-style layout grid directly in the browser.",
-  "Helps designers and engineers inspect spacing without leaving the app.",
-  "Ships as a small React component that fits into Next.js and other React setups.",
+  "Adds a Figma-style layout grid, rulers, and draggable guides directly in the browser.",
+  "Guides snap to the edges of your real rendered elements, not to design-file objects.",
+  "Helps designers and engineers check alignment without leaving the app.",
 ];
 
 const usageSteps = [
@@ -33,37 +43,72 @@ const usageSteps = [
     description: "Add the package to your app.",
     command: installCommand,
     commandName: "install",
+    language: "bash",
   },
   {
     title: "Use",
     description: "Render the overlay once near the root of your app.",
     command: usageCommand,
     commandName: "use",
+    language: "tsx",
+  },
+  {
+    title: "Any framework",
+    description:
+      "Svelte, Vue, Astro, or plain JavaScript can drive the same engine directly through @guideframe/core.",
+    command: coreUsageCommand,
+    commandName: "core",
+    language: "ts",
   },
 ];
 
 const coverageItems = [
   "Layout grid overlay",
-  "Browser-visible inspection aid",
-  "React component API",
-  "Next.js friendly usage",
+  "Rulers with document-space ticks",
+  "Draggable guides",
+  "Snapping to element edges",
+  "Per-route guide persistence",
+  "Container-scoped overlays",
+  "React and Next.js",
+  "Svelte, Vue, and vanilla JS",
 ];
 
 const packagePoints = [
   "Designed for design engineering workflows that need a visual grid while building interfaces.",
   "Keeps the interface lightweight and unobtrusive so the grid stays useful instead of distracting.",
-  "Works as a developer aid rather than a product-facing UI layer.",
+  "Renders inside a shadow root, so your CSS cannot affect the overlay and the overlay cannot affect your layout.",
+  "Inert in production by default, and never rendered on the server.",
 ];
 
 const shortcutItems = [
   {
-    platform: "macOS",
-    shortcut: "Cmd + G",
+    action: "Toggle the overlay",
+    shortcut: "Cmd / Ctrl + G",
   },
   {
-    platform: "Windows",
-    shortcut: "Ctrl + G",
+    action: "Toggle the rulers",
+    shortcut: "Shift + R",
   },
+  {
+    action: "Lock every guide",
+    shortcut: "Shift + L",
+  },
+  {
+    action: "Delete the selected guide",
+    shortcut: "Backspace",
+  },
+  {
+    action: "Cancel a drag, or deselect",
+    shortcut: "Esc",
+  },
+];
+
+const guideActions = [
+  "Drag off a ruler to place a guide, and drag a guide to move it.",
+  "Click a guide to select it, then press Backspace or Delete to remove it.",
+  "Or drag a guide back onto the ruler to delete it.",
+  "Hold Alt while dragging to ignore snapping.",
+  "Click the ruler corner to clear every guide on the route.",
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -101,21 +146,24 @@ export default function Page() {
     <div className="flex flex-col gap-16 pb-16">
       <section className="flex flex-col gap-6">
         <div className="flex flex-col gap-1">
-          <p className="text-sm tracking-[0.18em] uppercase">React package</p>
+          <p className="text-sm tracking-[0.18em] uppercase">
+            Layout grid overlay
+          </p>
           <div className="flex flex-col gap-2">
             <h1 className="text-foreground-main font-helvetica-neue text-4xl leading-none tracking-[-0.04em] sm:text-5xl">
               GuideFrame
             </h1>
             <p className="text-foreground-main text-lg leading-relaxed">
-              A React overlay for visual layout grids in the browser.
+              Figma-style layout grids, rulers, and guides in the browser.
             </p>
           </div>
         </div>
 
         <p className="max-w-xl text-balance leading-7">
-          GuideFrame adds a simple Figma-style grid to your app so you can check
-          spacing, alignment, and composition without guessing from static mocks
-          alone.
+          GuideFrame brings the grid, rulers, and draggable guides you already
+          know from Figma into your running app, so you can check spacing and
+          alignment against the real rendered DOM instead of guessing from static
+          mocks alone.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -130,6 +178,12 @@ export default function Page() {
             analyticsLabel="npm"
           >
             npm
+          </InlineLink>
+          <InlineLink
+            href="https://www.npmjs.com/package/@guideframe/core"
+            analyticsLabel="npm_core"
+          >
+            @guideframe/core
           </InlineLink>
         </div>
 
@@ -173,7 +227,7 @@ export default function Page() {
               </div>
               <InternalCodeBlock
                 code={step.command}
-                language={step.title === "Install" ? "bash" : "tsx"}
+                language={step.language}
                 filename={step.title.toLowerCase()}
                 copyEventName="landing_usage_command_copied"
                 copyEventProperties={{
@@ -209,12 +263,10 @@ export default function Page() {
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           {shortcutItems.map((item) => (
             <div
-              key={item.platform}
+              key={item.action}
               className="border-border bg-background rounded-2xl border p-4"
             >
-              <p className="text-foreground-main font-medium">
-                {item.platform}
-              </p>
+              <p className="text-foreground-main font-medium">{item.action}</p>
               <p className="text-foreground-main mt-1 font-mono text-lg tracking-[-0.03em]">
                 {item.shortcut}
               </p>
@@ -224,6 +276,23 @@ export default function Page() {
         <p>
           Hit the shortcut in your app to bring GuideFrame up when you want a
           quick visual grid reference.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <SectionHeading>Working with guides</SectionHeading>
+        <ul className="grid grid-cols-1 gap-2">
+          {guideActions.map((action) => (
+            <li key={action}>
+              <p className="leading-7">{action}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="max-w-xl text-balance leading-7">
+          Guides snap to the box edges of whatever element is under your pointer,
+          to your column boundaries, and to other guides — and the readout names
+          what it locked onto. They persist per route, so the guides you draw on
+          one page stay there.
         </p>
       </section>
 

@@ -1,7 +1,7 @@
 {
   "name": "guide-frame",
   "private": true,
-  "version": "0.2.0-beta.0",
+  "version": "0.2.0-beta.2",
   "packageManager": "npm@11.9.0",
   "workspaces": [
     "packages/*",

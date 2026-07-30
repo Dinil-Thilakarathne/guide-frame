@@ -37,16 +37,19 @@ directly from a Server Component file.
 
 ## Rulers and guides
 
-Drag off a ruler to place a guide, drag a guide to move it, and drop it back on
-the ruler to delete it. Guides snap to the edges of the DOM element under the
-pointer, to your column boundaries, and to other guides — hold <kbd>Alt</kbd> to
-place one freely.
+Drag off a ruler to place a guide and drag a guide to move it. To remove one,
+either click it and press <kbd>Backspace</kbd>/<kbd>Delete</kbd>, or drag it back
+onto the ruler. Guides snap to the edges of the DOM element under the pointer, to
+your column boundaries, and to other guides — hold <kbd>Alt</kbd> to place one
+freely.
 
 | Shortcut | Action |
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>G</kbd> | Toggle the overlay |
 | <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle the rulers |
 | <kbd>Shift</kbd> + <kbd>L</kbd> | Lock/unlock every guide |
+| <kbd>Backspace</kbd> / <kbd>Delete</kbd> | Delete the selected guide |
+| <kbd>Esc</kbd> | Cancel a drag, or deselect |
 
 Guides persist per route in `localStorage`. See the
 [core README](../core/README.md) for the full option and behaviour reference.

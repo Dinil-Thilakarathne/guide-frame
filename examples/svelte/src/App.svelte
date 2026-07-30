@@ -41,6 +41,7 @@
     <li><kbd>Shift</kbd> + <kbd>R</kbd> — toggle rulers</li>
     <li><kbd>Shift</kbd> + <kbd>L</kbd> — lock every guide</li>
     <li>Drag off a ruler to add a guide, drop it back to delete it</li>
+    <li>Click a guide, then <kbd>Backspace</kbd> — removes it without dragging</li>
     <li>Hold <kbd>Alt</kbd> while dragging to ignore snapping</li>
   </ul>
 

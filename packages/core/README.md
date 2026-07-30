@@ -68,11 +68,21 @@ interaction model matches Figma:
 | Action | Result |
 | --- | --- |
 | Drag off a ruler | Creates a guide and starts dragging it |
+| Click a guide | Selects it |
 | Drag a guide | Moves it |
+| <kbd>Backspace</kbd> / <kbd>Delete</kbd> | Deletes the selected guide |
 | Drop a guide on a ruler | Deletes it |
 | Hold <kbd>Alt</kbd> while dragging | Ignores snapping |
-| <kbd>Esc</kbd> while dragging | Cancels the drag |
+| <kbd>Esc</kbd> while dragging | Cancels the drag, restoring the guide's position |
+| <kbd>Esc</kbd> with a guide selected | Deselects it |
 | Click the ruler corner | Clears every guide on the route |
+
+A selected guide is highlighted and shows a small handle. Selection is cleared by
+pressing <kbd>Esc</kbd> or clicking anywhere off the guide. Locked guides can be
+selected but not moved or deleted.
+
+<kbd>Backspace</kbd>/<kbd>Delete</kbd> and <kbd>Esc</kbd> keep working even with
+`shortcut: false`, because they only act on a guide you have directly selected.
 
 ### Keyboard shortcuts
 
@@ -84,6 +94,10 @@ interaction model matches Figma:
 
 All shortcuts are disabled with `shortcut: false`, and are ignored while typing
 in an input, textarea, contenteditable, or while an IME is composing.
+
+The grid and the rulers are independent layers. <kbd>Shift</kbd>+<kbd>R</kbd>
+brings the rulers up even when the grid is hidden, and toggling the overlay off
+takes both with it.
 
 ### Snapping
 

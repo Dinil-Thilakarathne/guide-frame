@@ -1,6 +1,6 @@
 {
   "name": "@guideframe/react",
-  "version": "0.2.0-beta.0",
+  "version": "0.2.0-beta.2",
   "private": false,
   "license": "MIT",
   "type": "module",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {},
   "dependencies": {
-    "@guideframe/core": "0.2.0-beta.0"
+    "@guideframe/core": "0.2.0-beta.2"
   },
   "repository": {
     "type": "git",

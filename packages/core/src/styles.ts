@@ -211,6 +211,38 @@ export const OVERLAY_STYLES = `
   box-shadow: 0 0 0 1px rgba(0, 138, 255, 0.35);
 }
 
+/* A selected guide can be deleted with Backspace/Delete, so it needs to be
+ * obvious which one has focus. */
+.gf-guide-selected .gf-guide-line {
+  background: var(--gf-guide-selected-color, rgb(255 0 84));
+  box-shadow: 0 0 0 2px rgba(255, 0, 84, 0.25);
+}
+
+.gf-guide-x .gf-guide-handle,
+.gf-guide-y .gf-guide-handle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--gf-guide-selected-color, rgb(255 0 84));
+  pointer-events: none;
+  opacity: 0;
+}
+
+.gf-guide-x .gf-guide-handle {
+  top: calc(var(--gf-ruler-size, 20px) + 4px);
+  left: -3px;
+}
+
+.gf-guide-y .gf-guide-handle {
+  left: calc(var(--gf-ruler-size, 20px) + 4px);
+  top: -3px;
+}
+
+.gf-guide-selected .gf-guide-handle {
+  opacity: 1;
+}
+
 /* --------------------------------------------------------------- readout -- */
 
 .gf-readout {

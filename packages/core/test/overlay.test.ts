@@ -209,6 +209,130 @@ describe("createGuideframe", () => {
     second.destroy();
   });
 
+  it("selects a guide on pointerdown and deletes it with Backspace", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "x", position: 200 },
+      ],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 1 }));
+    expect(
+      shadow()?.querySelector('[data-guide-id="a"]')?.classList.contains("gf-guide-selected"),
+    ).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["b"]);
+    instance.destroy();
+  });
+
+  it("Escape mid-drag restores an existing guide instead of deleting it", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 20, clientX: 100 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { pointerId: 20, clientX: 300, bubbles: true }),
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(instance.getGuides()).toHaveLength(1);
+    expect(instance.getGuides()[0].position).toBe(100);
+    instance.destroy();
+  });
+
+  it("deletes the selected guide with Delete too", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "y", position: 40 }],
+    });
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 2 }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    expect(instance.getGuides()).toEqual([]);
+    instance.destroy();
+  });
+
+  it("does nothing on Backspace when no guide is selected", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 10 }],
+    });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides()).toHaveLength(1);
+    instance.destroy();
+  });
+
+  it("refuses to delete a locked guide", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 10, locked: true }],
+    });
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 3 }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides()).toHaveLength(1);
+    instance.destroy();
+  });
+
+  it("ignores Backspace typed into an input", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 10 }],
+    });
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 4 }));
+
+    const input = document.createElement("input");
+    document.body.append(input);
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace", bubbles: true }));
+    expect(instance.getGuides()).toHaveLength(1);
+    instance.destroy();
+  });
+
+  it("deletes even when global shortcuts are disabled", () => {
+    // Deletion acts on a directly selected guide, so it is not a global shortcut.
+    const instance = createGuideframe({
+      shortcut: false,
+      defaultGuides: [{ id: "a", axis: "x", position: 10 }],
+    });
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 5 }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides()).toEqual([]);
+    instance.destroy();
+  });
+
+  it("deselects on Escape and on a click elsewhere", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 10 }],
+    });
+    const hit = shadow()?.querySelector(".gf-guide-hit") as HTMLElement;
+    const guide = () => shadow()?.querySelector('[data-guide-id="a"]');
+
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 6 }));
+    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 6 }));
+    expect(guide()?.classList.contains("gf-guide-selected")).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(guide()?.classList.contains("gf-guide-selected")).toBe(false);
+
+    hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 7 }));
+    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 7 }));
+    expect(guide()?.classList.contains("gf-guide-selected")).toBe(true);
+
+    document.body.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 8 }),
+    );
+    expect(guide()?.classList.contains("gf-guide-selected")).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides()).toHaveLength(1);
+    instance.destroy();
+  });
+
   it("clears guides", () => {
     const instance = createGuideframe({
       defaultGuides: [{ id: "a", axis: "x", position: 10 }],
@@ -259,6 +383,65 @@ describe("createGuideframe", () => {
     await flush();
     expect((shadow()?.querySelector(".gf-guide-y") as HTMLElement).style.top).toBe("500px");
     Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+    instance.destroy();
+  });
+
+  it("brings rulers up with shift+r even when the grid is hidden", async () => {
+    // Regression: rulers used to be nested under the grid's visibility, so
+    // shift+r was a silent no-op until the grid was toggled on first.
+    const instance = createGuideframe({ rulers: true, defaultVisible: false });
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(true);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "R", shiftKey: true }));
+    await flush();
+
+    const root = shadow()?.querySelector(".gf-root");
+    expect(root?.classList.contains("gf-hidden")).toBe(false);
+    expect(shadow()?.querySelector(".gf-ruler-x")?.classList.contains("gf-hidden")).toBe(false);
+    // ...and the grid columns stay hidden, because only the rulers were asked for.
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
+      true,
+    );
+    instance.destroy();
+  });
+
+  it("hiding the overlay takes the rulers with it", async () => {
+    const instance = createGuideframe({ rulers: true });
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(false);
+
+    instance.setVisible(false);
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(true);
+
+    // ...and shift+r brings just the rulers back, without the grid.
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "R", shiftKey: true }));
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(false);
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
+      true,
+    );
+    instance.destroy();
+  });
+
+  it("keeps rulers in step with the grid on load", async () => {
+    // `rulers` alone must not change how an existing setup looks on first paint:
+    // with the grid hidden, the whole overlay stays hidden.
+    const instance = createGuideframe({ rulers: true, defaultVisible: false });
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(true);
+
+    // Toggling the grid on brings the rulers with it.
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "g", ctrlKey: true, metaKey: true }),
+    );
+    await flush();
+    expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(false);
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
+      false,
+    );
+    expect(shadow()?.querySelector(".gf-ruler-x")?.classList.contains("gf-hidden")).toBe(false);
     instance.destroy();
   });
 

@@ -144,7 +144,9 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   // ---------------------------------------------------------------- state --
   let destroyed = false;
   let visible = options.visible ?? options.defaultVisible ?? true;
-  let rulersHidden = false;
+  let rulersOn = false;
+  /** The guide that Backspace/Delete acts on. */
+  let selectedId: string | null = null;
   let guides: Guide[] = [];
   let geometry: GridGeometry | null = null;
   let breakpoint: Breakpoint = "desktop";
@@ -164,6 +166,9 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (stored === "false") visible = false;
   }
   guides = controlledGuides() ?? options.defaultGuides ?? readGuides(guidesKey());
+  // Rulers start in step with the grid, so enabling `rulers` doesn't change how
+  // an existing setup looks on load. Shift+R moves them independently after that.
+  rulersOn = normaliseRulers(options.rulers) !== null && visible;
 
   // ------------------------------------------------------------ rendering --
   function effectivePosition(): "fixed" | "absolute" {
@@ -253,7 +258,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
   function renderRulers() {
     const config = rulerConfig();
-    const enabled = config !== null && !rulersHidden;
+    const enabled = rulersVisible();
 
     rulerX.classList.toggle("gf-hidden", !enabled);
     rulerY.classList.toggle("gf-hidden", !enabled);
@@ -336,12 +341,17 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
         line.className = "gf-guide-line";
         const hit = document.createElement("div");
         hit.className = "gf-guide-hit";
-        element.append(line, hit);
+        const handle = document.createElement("div");
+        handle.className = "gf-guide-handle";
+        element.append(line, hit, handle);
         hit.addEventListener("pointerdown", (event) => onGuidePointerDown(event, guide.id));
         guidesLayer.append(element);
         guideElements.set(guide.id, element);
       }
-      element.className = `gf-guide gf-guide-${guide.axis}${guide.locked ? " gf-guide-locked" : ""}`;
+      const classes = ["gf-guide", `gf-guide-${guide.axis}`];
+      if (guide.locked) classes.push("gf-guide-locked");
+      if (guide.id === selectedId) classes.push("gf-guide-selected");
+      element.className = classes.join(" ");
       element.dataset.guideId = guide.id;
     }
 
@@ -368,11 +378,23 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     }
   }
 
+  /** True when the rulers (and therefore the guides) should be drawn. */
+  function rulersVisible() {
+    return rulerConfig() !== null && rulersOn;
+  }
+
+  /*
+   * The grid and the rulers are independent layers. The root only hides when
+   * *both* are off, so `Shift+R` can bring the rulers up from cold instead of
+   * being a silent no-op whenever the grid happens to be hidden.
+   */
   function render() {
     if (destroyed) return;
-    root.classList.toggle("gf-hidden", !isVisible());
-    if (!isVisible()) return;
+    const showRoot = isVisible() || rulersVisible();
+    root.classList.toggle("gf-hidden", !showRoot);
+    if (!showRoot) return;
     geometry = currentGeometry();
+    gridLayer.classList.toggle("gf-hidden", !isVisible());
     renderGrid();
     renderGuides();
     renderRulers();
@@ -391,7 +413,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (destroyed || frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      if (!isVisible()) return;
+      if (!isVisible() && !rulersVisible()) return;
       positionGuides();
       renderRulers();
     });
@@ -462,6 +484,8 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     axis: GuideAxis;
     /** Created by dragging off a ruler — dropping it back on the ruler cancels. */
     fromRuler: boolean;
+    /** Where the guide sat before the drag, so Escape can put it back. */
+    originPosition: number;
     pointerId: number;
     captureTarget: Element;
   };
@@ -559,8 +583,21 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     guideElements.get(current.id)?.classList.remove("gf-guide-dragging");
 
     const droppedOnRuler = !cancelled && isOverRuler(event, current.axis);
-    if (cancelled || droppedOnRuler) {
+
+    // A cancelled drag only removes the guide if the drag is what created it.
+    // Cancelling a move of an existing guide puts it back where it started.
+    if (droppedOnRuler || (cancelled && current.fromRuler)) {
+      if (selectedId === current.id) selectedId = null;
       commitGuides(guides.filter((guide) => guide.id !== current.id));
+      return;
+    }
+
+    if (cancelled) {
+      commitGuides(
+        guides.map((guide) =>
+          guide.id === current.id ? { ...guide, position: current.originPosition } : guide,
+        ),
+      );
       return;
     }
 
@@ -580,6 +617,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       id: guide.id,
       axis: guide.axis,
       fromRuler,
+      originPosition: guide.position,
       pointerId: event.pointerId,
       captureTarget: target,
     };
@@ -587,10 +625,27 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     updateDrag(event);
   }
 
+  function select(id: string | null) {
+    if (selectedId === id) return;
+    selectedId = id;
+    renderGuides();
+  }
+
+  function deleteSelected() {
+    const guide = guides.find((item) => item.id === selectedId);
+    if (!guide || guide.locked) return false;
+    selectedId = null;
+    commitGuides(guides.filter((item) => item.id !== guide.id));
+    return true;
+  }
+
   function onGuidePointerDown(event: PointerEvent, id: string) {
     if (event.button !== 0) return;
     const guide = guides.find((item) => item.id === id);
-    if (!guide || guide.locked) return;
+    if (!guide) return;
+    // Selecting a locked guide is fine — it just can't be moved or deleted.
+    select(id);
+    if (guide.locked) return;
     const target = event.currentTarget as Element;
     beginDrag(event, guide, false, target);
   }
@@ -603,6 +658,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       position: pointerPosition(event, axis),
     };
     guides = [...guides, guide];
+    selectedId = guide.id;
     renderGuides();
     beginDrag(event, guide, true, event.currentTarget as Element);
   }
@@ -634,10 +690,31 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       return;
     }
 
-    if (options.shortcut === false) return;
     // Ignore keystrokes an IME is still composing, and anything typed into a field.
     if (event.isComposing || event.keyCode === 229) return;
     if (isEditableTarget(event.target)) return;
+
+    /*
+     * Deleting and deselecting act on a guide the user has directly selected, so
+     * they stay available even when the global `shortcut` handling is disabled —
+     * they can't fire unless a guide is selected in the first place.
+     */
+    if (selectedId !== null) {
+      if (event.key === "Backspace" || event.key === "Delete") {
+        // Backspace would otherwise navigate back in some browsers.
+        event.preventDefault();
+        deleteSelected();
+        return;
+      }
+
+      if (event.key === "Escape") {
+        event.preventDefault();
+        select(null);
+        return;
+      }
+    }
+
+    if (options.shortcut === false) return;
 
     const platform = typeof navigator !== "undefined" ? navigator.platform || "" : "";
     const isMac = /Mac|iPhone|iPad/.test(platform);
@@ -652,7 +729,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
     if (event.shiftKey && !modKey && !event.altKey && key === "r") {
       event.preventDefault();
-      rulersHidden = !rulersHidden;
+      rulersOn = !rulersOn;
       scheduleRender();
       return;
     }
@@ -668,6 +745,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   rulerY.addEventListener("pointerdown", (event) => onRulerPointerDown(event, "x"));
   rulerCorner.addEventListener("click", () => clearGuides());
 
+  const onWindowPointerDown = (event: PointerEvent) => {
+    if (selectedId === null) return;
+    // Shadow-DOM events retarget to the host, so a different target means the
+    // click landed on the page rather than on a guide.
+    if (event.target === host) return;
+    select(null);
+  };
+
+  window.addEventListener("pointerdown", onWindowPointerDown, true);
   window.addEventListener("pointermove", onPointerMove, { passive: false });
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointercancel", onPointerCancel);
@@ -693,11 +779,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       visible = next;
       safeWrite(storageKey(), String(next));
     }
+    // Showing or hiding the overlay brings the rulers with it, so the master
+    // toggle reveals everything that was configured. Shift+R moves them alone.
+    rulersOn = next && normaliseRulers(options.rulers) !== null;
     options.onVisibleChange?.(next);
     scheduleRender();
   }
 
   function clearGuides() {
+    selectedId = null;
     commitGuides([]);
   }
 
@@ -714,6 +804,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       if (destroyed) return;
       destroyed = true;
       if (frame) cancelAnimationFrame(frame);
+      window.removeEventListener("pointerdown", onWindowPointerDown, true);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerCancel);
@@ -728,7 +819,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     setVisible,
     isVisible,
     getGuides: () => guides.slice(),
-    setGuides: (next: Guide[]) => commitGuides(next),
+    setGuides: (next: Guide[]) => {
+      if (!next.some((guide) => guide.id === selectedId)) selectedId = null;
+      commitGuides(next);
+    },
     clearGuides,
   };
 }

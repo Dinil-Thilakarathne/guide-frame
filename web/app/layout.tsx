@@ -18,14 +18,16 @@ export const metadata: Metadata = {
     template: "%s | GuideFrame",
   },
   description:
-    "A React overlay for adding Figma-style layout grids inside the browser.",
+    "Figma-style layout grids, rulers, and draggable guides inside the browser.",
   applicationName: "GuideFrame",
   keywords: [
     "GuideFrame",
-    "React overlay",
     "layout grid",
+    "rulers and guides",
     "design engineering",
+    "React overlay",
     "Next.js",
+    "Svelte",
     "developer tools",
   ],
   authors: [{ name: "Dinil Thilakarathne" }],
@@ -40,13 +42,13 @@ export const metadata: Metadata = {
     title: "GuideFrame",
     siteName: "GuideFrame",
     description:
-      "Add a browser-visible layout grid to React apps for spacing and alignment checks.",
+      "Add a browser-visible layout grid, rulers, and snapping guides to your app for spacing and alignment checks.",
     images: [
       {
         url: getAbsoluteUrl("/opengraph-image"),
         width: 1200,
         height: 630,
-        alt: "GuideFrame React overlay",
+        alt: "GuideFrame layout grid overlay",
       },
     ],
   },
@@ -54,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "GuideFrame",
     description:
-      "A React overlay for adding Figma-style layout grids inside the browser.",
+      "Figma-style layout grids, rulers, and draggable guides inside the browser.",
     images: [getAbsoluteUrl("/twitter-image")],
   },
   robots: {

@@ -13,6 +13,7 @@ export default function GuideframeClient() {
         gutter={8}
         forceVisibleInProduction={true}
         defaultVisible={false}
+        rulers
       />
     </>
   );

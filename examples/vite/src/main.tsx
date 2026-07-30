@@ -159,8 +159,9 @@ function App() {
             </label>
           </div>
           <p className="hint">
-            Drag off a ruler to place a guide. Alt disables snapping, drag back onto
-            the ruler to delete, Shift+L locks.
+            Drag off a ruler to place a guide. Click one and press Backspace to
+            remove it, or drag it back onto the ruler. Alt disables snapping,
+            Shift+L locks.
           </p>
 
           <div className="swatches" aria-label="Grid color">
