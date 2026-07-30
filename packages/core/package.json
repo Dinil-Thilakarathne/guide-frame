@@ -1,9 +1,10 @@
 {
-  "name": "@guideframe/react",
+  "name": "@guideframe/core",
   "version": "0.2.0-beta.0",
   "private": false,
   "license": "MIT",
   "type": "module",
+  "description": "Framework-agnostic layout grid, rulers and guides overlay for the browser.",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -21,25 +22,17 @@
       "require": "./dist/index.cjs"
     }
   },
-  "peerDependencies": {
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0"
-  },
   "scripts": {
-    "build": "tsup",
-    "publish:beta": "npm publish --tag beta",
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "prepublishOnly": "npm run build"
   },
   "devDependencies": {},
-  "dependencies": {
-    "@guideframe/core": "0.2.0-beta.0"
-  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Dinil-Thilakarathne/guide-frame.git",
-    "directory": "packages/react"
+    "directory": "packages/core"
   },
   "homepage": "https://github.com/Dinil-Thilakarathne/guide-frame#readme",
   "bugs": {

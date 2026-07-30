@@ -470,3 +470,10 @@ h1 {
     min-height: 700px;
   }
 }
+
+.hint {
+  margin: 0 0 4px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #6b7785;
+}

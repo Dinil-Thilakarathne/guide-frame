@@ -1,18 +1,18 @@
 {
   "name": "guide-frame",
   "private": true,
-  "version": "0.1.1-beta.3",
+  "version": "0.2.0-beta.0",
   "packageManager": "npm@11.9.0",
   "workspaces": [
     "packages/*",
     "examples/*"
   ],
   "scripts": {
-    "build": "npm run build --workspace @guideframe/react && npm run build --workspace guideframe-demo",
+    "build": "npm run build --workspace @guideframe/core && npm run build --workspace @guideframe/react && npm run build --workspace guideframe-demo",
     "dev": "npm run dev --workspace guideframe-demo",
-    "publish:beta": "npm run build --workspace @guideframe/react && npm publish --workspace @guideframe/react --tag beta",
-    "test": "npm run test --workspace @guideframe/react",
-    "type-check": "npm run typecheck --workspace @guideframe/react && npm run typecheck --workspace guideframe-demo"
+    "publish:beta": "npm run build --workspace @guideframe/core && npm run build --workspace @guideframe/react && npm publish --workspace @guideframe/core --tag beta && npm publish --workspace @guideframe/react --tag beta",
+    "test": "npm run test --workspace @guideframe/core && npm run test --workspace @guideframe/react",
+    "type-check": "npm run typecheck --workspace @guideframe/core && npm run typecheck --workspace @guideframe/react && npm run typecheck --workspace guideframe-demo"
   },
   "keywords": [],
   "author": "",

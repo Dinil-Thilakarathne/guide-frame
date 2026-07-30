@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import ReactDOM, { type Root } from "react-dom/client";
 import { GuideframeGrid } from "@guideframe/react";
 import type { GuideframeGridProps } from "@guideframe/react";
@@ -59,6 +59,9 @@ function App() {
   const [visible, setVisible] = useState(true);
   const [opacity, setOpacity] = useState(0.16);
   const [color, setColor] = useState(colorOptions[0]);
+  const [rulers, setRulers] = useState(true);
+  const frameRef = useRef<HTMLDivElement | null>(null);
+  const [frameReady, setFrameReady] = useState(false);
 
   const preset = presets[presetKey];
   const viewportLabel = viewport[0].toUpperCase() + viewport.slice(1);
@@ -144,6 +147,22 @@ function App() {
             />
           </label>
 
+          <div className="group-header">
+            <h2>Rulers &amp; guides</h2>
+            <label className="switch">
+              <input
+                type="checkbox"
+                checked={rulers}
+                onChange={(event) => setRulers(event.currentTarget.checked)}
+              />
+              <span />
+            </label>
+          </div>
+          <p className="hint">
+            Drag off a ruler to place a guide. Alt disables snapping, drag back onto
+            the ruler to delete, Shift+L locks.
+          </p>
+
           <div className="swatches" aria-label="Grid color">
             {colorOptions.map((option) => (
               <button
@@ -187,7 +206,14 @@ function App() {
           <span className="viewport-pill">{viewportLabel}</span>
         </div>
 
-        <div className={viewportClass}>
+        <div
+          className={viewportClass}
+          ref={(node) => {
+            frameRef.current = node;
+            if (node) setFrameReady(true);
+          }}
+        >
+          {frameReady ? (
           <GuideframeGrid
             columns={preset.columns}
             gutter={preset.gutter}
@@ -197,11 +223,14 @@ function App() {
             color={color}
             opacity={opacity}
             visible={visible}
-            position="absolute"
+            container={frameRef.current}
+            rulers={rulers}
+            snap={{ elements: true, columns: true, guides: true, threshold: 6 }}
             shortcut={false}
             storageKey="guideframe:playground-visible"
             zIndex={4}
           />
+          ) : null}
 
           <article className="mock-page">
             <header className="mock-hero">
