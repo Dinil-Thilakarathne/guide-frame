@@ -1,15 +1,17 @@
 # GuideFrame
 
+[![GitHub stars](https://img.shields.io/github/stars/Dinil-Thilakarathne/guide-frame?style=flat&label=Stars)](https://github.com/Dinil-Thilakarathne/guide-frame/stargazers)
+
 GuideFrame brings Figma-style layout grids, rulers and draggable guides into the
 browser, so you can check alignment against the real rendered DOM instead of
 eyeballing it against a static mock.
 
 ## Packages
 
-| Package | Description |
-| --- | --- |
-| [`@guideframe/core`](packages/core) | Framework-agnostic engine. Zero dependencies. Works with Svelte, Vue, Astro, or plain JS. |
-| [`@guideframe/react`](packages/react) | React/Next.js wrapper around the core. |
+| Package                               | Description                                                                               |
+| ------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [`@guideframe/core`](packages/core)   | Framework-agnostic engine. Zero dependencies. Works with Svelte, Vue, Astro, or plain JS. |
+| [`@guideframe/react`](packages/react) | React/Next.js wrapper around the core.                                                    |
 
 ## Quick start
 

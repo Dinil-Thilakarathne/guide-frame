@@ -26,6 +26,8 @@ jobs:
         run: npm run format:check
       - name: Lint
         run: npm run lint
+      - name: Build core dependency
+        run: npm run build --workspace @guideframe/core
       - name: Test
         run: npm test
       - name: Type-check
@@ -52,4 +54,3 @@ jobs:
         run: bun run lint
       - name: Build
         run: bun run build
-
