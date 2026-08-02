@@ -46,13 +46,25 @@ freely.
 | Shortcut | Action |
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>G</kbd> | Toggle the overlay |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Toggle the floating control panel |
 | <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle the rulers |
 | <kbd>Shift</kbd> + <kbd>L</kbd> | Lock/unlock every guide |
+| <kbd>Shift</kbd> + <kbd>M</kbd> | Toggle the geometry inspector |
 | <kbd>Backspace</kbd> / <kbd>Delete</kbd> | Delete the selected guide |
 | <kbd>Esc</kbd> | Cancel a drag, or deselect |
 
 Guides persist per route in `localStorage`. See the
 [core README](../core/README.md) for the full option and behaviour reference.
+
+## Geometry inspector
+
+Open the floating control panel with
+<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd>, then enable **Geometry
+inspector**. Hover an element to read its rendered dimensions and padding. Click
+to pin it, then hover another element to compare gaps and alignment. Press
+<kbd>Esc</kbd> to clear the pinned element, then again to exit. Page clicks are
+paused while inspection is active, so buttons and links cannot be triggered by
+measurement clicks.
 
 ## Scoping to a container
 

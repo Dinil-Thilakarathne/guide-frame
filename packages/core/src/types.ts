@@ -71,6 +71,9 @@ export type GuideframeOptions = {
   /** Set false to disable snapping entirely, or pass an object to tune it. */
   snap?: boolean | SnapOptions;
 
+  /** Enable the compact floating control panel. Open it with Mod+Shift+G. */
+  panel?: boolean;
+
   shortcut?: boolean;
   storageKey?: string;
   /**

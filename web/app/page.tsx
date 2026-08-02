@@ -34,6 +34,7 @@ guideframe.destroy();`;
 const quickFacts = [
   "Adds a Figma-style layout grid, rulers, and draggable guides directly in the browser.",
   "Guides snap to the edges of your real rendered elements, not to design-file objects.",
+  "Measures rendered dimensions, padding, gaps, and alignment between components.",
   "Helps designers and engineers check alignment without leaving the app.",
 ];
 
@@ -67,6 +68,8 @@ const coverageItems = [
   "Rulers with document-space ticks",
   "Draggable guides",
   "Snapping to element edges",
+  "Geometry inspection and comparison",
+  "Floating control panel",
   "Per-route guide persistence",
   "Container-scoped overlays",
   "React and Next.js",
@@ -86,8 +89,16 @@ const shortcutItems = [
     shortcut: "Cmd / Ctrl + G",
   },
   {
+    action: "Open the control panel",
+    shortcut: "Cmd / Ctrl + Shift + G",
+  },
+  {
     action: "Toggle the rulers",
     shortcut: "Shift + R",
+  },
+  {
+    action: "Toggle geometry inspection",
+    shortcut: "Shift + M",
   },
   {
     action: "Lock every guide",
@@ -109,6 +120,15 @@ const guideActions = [
   "Or drag a guide back onto the ruler to delete it.",
   "Hold Alt while dragging to ignore snapping.",
   "Click the ruler corner to clear every guide on the route.",
+];
+
+const inspectorActions = [
+  "Open the floating control panel and enable Geometry inspector, or press Shift + M.",
+  "Page interactions pause, so inspected buttons and links cannot activate.",
+  "Hover a component to read its rendered width, height, and padding.",
+  "Click the component to pin its geometry.",
+  "Hover another component to compare horizontal and vertical gaps plus alignment deltas.",
+  "Press Esc to clear the pinned component, then again to exit inspection.",
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -162,8 +182,8 @@ export default function Page() {
         <p className="max-w-xl text-balance leading-7">
           GuideFrame brings the grid, rulers, and draggable guides you already
           know from Figma into your running app, so you can check spacing and
-          alignment against the real rendered DOM instead of guessing from static
-          mocks alone.
+          alignment against the real rendered DOM instead of guessing from
+          static mocks alone.
         </p>
 
         <div className="flex flex-wrap gap-3">
@@ -289,10 +309,25 @@ export default function Page() {
           ))}
         </ul>
         <p className="max-w-xl text-balance leading-7">
-          Guides snap to the box edges of whatever element is under your pointer,
-          to your column boundaries, and to other guides — and the readout names
-          what it locked onto. They persist per route, so the guides you draw on
-          one page stay there.
+          Guides snap to the box edges of whatever element is under your
+          pointer, to your column boundaries, and to other guides — and the
+          readout names what it locked onto. They persist per route, so the
+          guides you draw on one page stay there.
+        </p>
+      </section>
+
+      <section className="flex flex-col gap-4">
+        <SectionHeading>Inspect component geometry</SectionHeading>
+        <ul className="grid grid-cols-1 gap-2">
+          {inspectorActions.map((action) => (
+            <li key={action}>
+              <p className="leading-7">{action}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="max-w-xl text-balance leading-7">
+          Pin one rendered element and compare it with another to turn a spacing
+          or alignment concern into exact browser measurements.
         </p>
       </section>
 

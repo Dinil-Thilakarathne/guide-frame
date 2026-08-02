@@ -89,8 +89,10 @@ selected but not moved or deleted.
 | Shortcut | Action |
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>G</kbd> | Toggle the overlay |
+| <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Toggle the floating control panel |
 | <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle the rulers |
 | <kbd>Shift</kbd> + <kbd>L</kbd> | Lock/unlock every guide |
+| <kbd>Shift</kbd> + <kbd>M</kbd> | Toggle the geometry inspector |
 
 All shortcuts are disabled with `shortcut: false`, and are ignored while typing
 in an input, textarea, contenteditable, or while an IME is composing.
@@ -110,6 +112,16 @@ While dragging, guides snap to the nearest of:
 Element edges win ties, and the readout names what was snapped to (for example
 `section.feature left`). This is the part Figma cannot do — the guides snap to
 your real rendered DOM, not to design-file objects.
+
+### Geometry inspector
+
+Enable **Geometry inspector** in the floating panel or press
+<kbd>Shift</kbd>+<kbd>M</kbd>. Hover an element to see its rendered dimensions and
+padding. Click to pin it, then hover another element to compare horizontal and
+vertical gaps plus left/top alignment deltas. Press <kbd>Esc</kbd> to clear the
+pinned element, then press it again to exit. While inspection is active,
+GuideFrame pauses page clicks and pointer activation so inspecting a button or
+link cannot trigger it; scrolling and hover inspection remain available.
 
 ### Persistence
 
@@ -146,6 +158,7 @@ The container must be positioned (`relative`, `absolute` or `sticky`).
 | `rulers` | `false` | `true` or `{ size, step }` |
 | `guides` / `defaultGuides` | `[]` | Controlled / initial guides |
 | `snap` | enabled | `false` or `{ elements, columns, guides, threshold }` |
+| `panel` | `true` | Enable the compact floating control panel |
 | `visible` / `defaultVisible` | `true` | Controlled / initial visibility |
 | `container` | — | Scope the overlay to an element |
 | `position` | `"fixed"` | `"fixed"` or `"absolute"` |

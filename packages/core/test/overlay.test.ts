@@ -472,6 +472,242 @@ describe("createGuideframe", () => {
     instance.destroy();
   });
 
+  it("opens the compact control panel with mod+shift+g", async () => {
+    Object.defineProperty(navigator, "platform", {
+      configurable: true,
+      value: "MacIntel",
+    });
+    const instance = createGuideframe();
+    const panel = shadow()?.querySelector(".gf-panel");
+    expect(panel?.classList.contains("gf-hidden")).toBe(true);
+
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
+    );
+    await flush();
+
+    expect(panel?.classList.contains("gf-hidden")).toBe(false);
+    expect(panel?.getAttribute("aria-label")).toBe("GuideFrame controls");
+    expect(localStorage.getItem("guideframe:panel")).toBe("true");
+    instance.destroy();
+  });
+
+  it("controls grid, rulers, guide locking and clearing from the panel", async () => {
+    const instance = createGuideframe({
+      rulers: true,
+      defaultGuides: [{ id: "a", axis: "x", position: 10 }],
+    });
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
+    );
+    await flush();
+
+    const controls = Array.from(shadow()?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+    const control = (label: string) => controls.find((button) => button.textContent?.includes(label));
+
+    expect(control("Grid")?.getAttribute("aria-checked")).toBe("true");
+    control("Grid")?.click();
+    await flush();
+    expect(instance.isVisible()).toBe(false);
+    expect(control("Grid")?.getAttribute("aria-checked")).toBe("false");
+
+    control("Rulers")?.click();
+    await flush();
+    expect(control("Rulers")?.getAttribute("aria-checked")).toBe("true");
+
+    control("Lock guides")?.click();
+    expect(instance.getGuides()[0].locked).toBe(true);
+    expect(control("Lock guides")?.getAttribute("aria-checked")).toBe("true");
+
+    control("Clear all guides")?.click();
+    expect(instance.getGuides()).toEqual([]);
+    expect(control("Clear all guides")?.disabled).toBe(true);
+    instance.destroy();
+  });
+
+  it("can disable the control panel", async () => {
+    const instance = createGuideframe({ panel: false });
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
+    );
+    await flush();
+    expect(shadow()?.querySelector(".gf-panel")?.classList.contains("gf-hidden")).toBe(true);
+    instance.destroy();
+  });
+
+  it("inspects rendered element geometry with shift+m", async () => {
+    const target = document.createElement("section");
+    target.className = "feature";
+    target.style.padding = "16px";
+    document.body.append(target);
+    vi.spyOn(target, "getBoundingClientRect").mockReturnValue({
+      x: 40,
+      y: 60,
+      left: 40,
+      top: 60,
+      right: 240,
+      bottom: 160,
+      width: 200,
+      height: 100,
+      toJSON: () => ({}),
+    });
+    vi.stubGlobal("getComputedStyle", () => ({
+      paddingTop: "16px",
+      paddingRight: "16px",
+      paddingBottom: "16px",
+      paddingLeft: "16px",
+    }));
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: () => [target],
+    });
+
+    const instance = createGuideframe({ defaultVisible: false });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "M", shiftKey: true }));
+    await flush();
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, clientX: 80, clientY: 90 }),
+    );
+
+    expect(shadow()?.querySelector(".gf-inspector-layer")?.classList.contains("gf-hidden")).toBe(
+      false,
+    );
+    expect(shadow()?.querySelector(".gf-inspector-label")?.textContent).toContain(
+      "section.feature",
+    );
+    expect(shadow()?.querySelector(".gf-inspector-label")?.textContent).toContain("200 × 100");
+    expect(shadow()?.querySelector(".gf-inspector-label")?.textContent).toContain(
+      "padding 16 16 16 16",
+    );
+    instance.destroy();
+  });
+
+  it("compares gaps and alignment between a pinned and hovered element", async () => {
+    const first = document.createElement("div");
+    first.className = "first";
+    const second = document.createElement("div");
+    second.className = "second";
+    document.body.append(first, second);
+    vi.spyOn(first, "getBoundingClientRect").mockReturnValue({
+      x: 20,
+      y: 20,
+      left: 20,
+      top: 20,
+      right: 120,
+      bottom: 70,
+      width: 100,
+      height: 50,
+      toJSON: () => ({}),
+    });
+    vi.spyOn(second, "getBoundingClientRect").mockReturnValue({
+      x: 144,
+      y: 20,
+      left: 144,
+      top: 20,
+      right: 244,
+      bottom: 70,
+      width: 100,
+      height: 50,
+      toJSON: () => ({}),
+    });
+    let inspected: Element = first;
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: () => [inspected],
+    });
+
+    const instance = createGuideframe();
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "m", shiftKey: true }));
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, clientX: 30, clientY: 30 }),
+    );
+    document.body.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, clientX: 30, clientY: 30 }),
+    );
+    inspected = second;
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, clientX: 150, clientY: 30 }),
+    );
+
+    const comparison = shadow()?.querySelector(".gf-inspector-distance");
+    expect(comparison?.classList.contains("gf-hidden")).toBe(false);
+    expect(comparison?.textContent).toContain("gap x 24 · y 0");
+    expect(comparison?.textContent).toContain("align x 124 · y 0");
+    instance.destroy();
+  });
+
+  it("pauses page activation and clearly marks inspection mode", async () => {
+    const button = document.createElement("button");
+    button.textContent = "Delete project";
+    document.body.append(button);
+    Object.defineProperty(document, "elementsFromPoint", {
+      configurable: true,
+      value: () => [button],
+    });
+    const onClick = vi.fn();
+    button.addEventListener("click", onClick);
+
+    const instance = createGuideframe({ defaultVisible: false });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "m", shiftKey: true }));
+    await flush();
+
+    expect(document.documentElement.style.cursor).toBe("crosshair");
+    expect(shadow()?.querySelector(".gf-inspector-status")?.textContent).toContain(
+      "Page interactions paused",
+    );
+
+    button.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 20,
+      }),
+    );
+    button.click();
+    expect(onClick).not.toHaveBeenCalled();
+    expect(shadow()?.querySelector(".gf-inspector-pinned")?.classList.contains("gf-hidden")).toBe(
+      false,
+    );
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    expect(shadow()?.querySelector(".gf-inspector-pinned")?.classList.contains("gf-hidden")).toBe(
+      true,
+    );
+    expect(document.documentElement.style.cursor).toBe("crosshair");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+    await flush();
+    expect(shadow()?.querySelector(".gf-inspector-layer")?.classList.contains("gf-hidden")).toBe(
+      true,
+    );
+    expect(document.documentElement.style.cursor).toBe("");
+    instance.destroy();
+  });
+
+  it("keeps GuideFrame panel controls interactive during inspection", async () => {
+    const instance = createGuideframe();
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
+    );
+    await flush();
+    const controls = Array.from(shadow()?.querySelectorAll<HTMLButtonElement>("button") ?? []);
+    const inspectorToggle = controls.find((button) =>
+      button.textContent?.includes("Geometry inspector"),
+    );
+    const gridToggle = controls.find((button) => button.textContent?.includes("Grid"));
+
+    inspectorToggle?.click();
+    await flush();
+    expect(inspectorToggle?.getAttribute("aria-checked")).toBe("true");
+
+    gridToggle?.click();
+    await flush();
+    expect(instance.isVisible()).toBe(false);
+    expect(gridToggle?.getAttribute("aria-checked")).toBe("false");
+    instance.destroy();
+  });
+
   it("scopes the overlay to a container element", () => {
     const container = document.createElement("div");
     container.style.position = "relative";

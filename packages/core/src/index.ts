@@ -6,6 +6,8 @@ import {
   DEFAULT_GUTTER,
   DEFAULT_MARGIN,
   DEFAULT_OPACITY,
+  DEFAULT_PANEL_POSITION_STORAGE_KEY,
+  DEFAULT_PANEL_STORAGE_KEY,
   DEFAULT_RULER_SIZE,
   DEFAULT_SNAP_THRESHOLD,
   DEFAULT_STORAGE_KEY,
@@ -24,6 +26,7 @@ import {
 import {
   columnEdges,
   computeGridGeometry,
+  describeElement,
   elementEdges,
   pickClosest,
   type GridGeometry,
@@ -77,6 +80,27 @@ function normaliseSnap(snap: GuideframeOptions["snap"]): Required<SnapOptions> |
   };
 }
 
+function createPanelButton(label: string, shortcut = "") {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "gf-panel-row";
+
+  const text = document.createElement("span");
+  text.textContent = label;
+  const key = document.createElement("kbd");
+  key.textContent = shortcut;
+  const toggle = document.createElement("span");
+  toggle.className = "gf-panel-toggle";
+  toggle.setAttribute("aria-hidden", "true");
+  button.append(text, key, toggle);
+  return button;
+}
+
+function modifierLabel() {
+  const platform = typeof navigator !== "undefined" ? navigator.platform || "" : "";
+  return /Mac|iPhone|iPad/.test(platform) ? "⌘" : "Ctrl+";
+}
+
 function scrollLeft() {
   return window.scrollX ?? window.pageXOffset ?? 0;
 }
@@ -126,6 +150,28 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const guidesLayer = document.createElement("div");
   guidesLayer.className = "gf-guides-layer";
 
+  const inspectorLayer = document.createElement("div");
+  inspectorLayer.className = "gf-inspector-layer gf-hidden";
+  const inspectorHover = document.createElement("div");
+  inspectorHover.className = "gf-inspector-box gf-inspector-hover";
+  const inspectorPinned = document.createElement("div");
+  inspectorPinned.className = "gf-inspector-box gf-inspector-pinned gf-hidden";
+  const inspectorLabel = document.createElement("div");
+  inspectorLabel.className = "gf-inspector-label";
+  const inspectorDistance = document.createElement("div");
+  inspectorDistance.className = "gf-inspector-distance gf-hidden";
+  const inspectorStatus = document.createElement("div");
+  inspectorStatus.className = "gf-inspector-status";
+  inspectorStatus.setAttribute("role", "status");
+  inspectorStatus.textContent = "Geometry Inspector · Page interactions paused · Esc to exit";
+  inspectorLayer.append(
+    inspectorHover,
+    inspectorPinned,
+    inspectorLabel,
+    inspectorDistance,
+    inspectorStatus,
+  );
+
   const rulerX = document.createElement("div");
   rulerX.className = "gf-ruler gf-ruler-x";
   const rulerY = document.createElement("div");
@@ -137,7 +183,62 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const readout = document.createElement("div");
   readout.className = "gf-readout gf-hidden";
 
-  root.append(gridLayer, guidesLayer, rulerX, rulerY, rulerCorner, readout);
+  const panel = document.createElement("section");
+  panel.className = "gf-panel gf-hidden";
+  panel.setAttribute("aria-label", "GuideFrame controls");
+  const panelHeader = document.createElement("header");
+  panelHeader.className = "gf-panel-header";
+  const panelTitle = document.createElement("strong");
+  panelTitle.textContent = "GuideFrame";
+  const panelMeta = document.createElement("span");
+  panelMeta.className = "gf-panel-meta";
+  const panelClose = document.createElement("button");
+  panelClose.type = "button";
+  panelClose.className = "gf-panel-close";
+  panelClose.setAttribute("aria-label", "Close GuideFrame controls");
+  panelClose.textContent = "×";
+  panelHeader.append(panelTitle, panelMeta, panelClose);
+
+  const panelBody = document.createElement("div");
+  panelBody.className = "gf-panel-body";
+  const gridControl = createPanelButton("Grid", `${modifierLabel()}G`);
+  const rulersControl = createPanelButton("Rulers", "⇧R");
+  const guidesControl = createPanelButton("Guides");
+  const inspectorControl = createPanelButton("Geometry inspector", "⇧M");
+  const lockControl = createPanelButton("Lock guides", "⇧L");
+  const snapElementsControl = createPanelButton("Snap to elements");
+  const snapColumnsControl = createPanelButton("Snap to columns");
+  const snapGuidesControl = createPanelButton("Snap to guides");
+  const separator = document.createElement("div");
+  separator.className = "gf-panel-separator";
+  const clearControl = document.createElement("button");
+  clearControl.type = "button";
+  clearControl.className = "gf-panel-clear";
+  clearControl.textContent = "Clear all guides";
+  panelBody.append(
+    gridControl,
+    rulersControl,
+    guidesControl,
+    inspectorControl,
+    lockControl,
+    separator,
+    snapElementsControl,
+    snapColumnsControl,
+    snapGuidesControl,
+    clearControl,
+  );
+  panel.append(panelHeader, panelBody);
+
+  root.append(
+    gridLayer,
+    guidesLayer,
+    inspectorLayer,
+    rulerX,
+    rulerY,
+    rulerCorner,
+    readout,
+    panel,
+  );
   mountTarget.append(host);
   liveRoots.add(host);
 
@@ -145,6 +246,13 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   let destroyed = false;
   let visible = options.visible ?? options.defaultVisible ?? true;
   let rulersOn = false;
+  let guidesOn = true;
+  let inspectorOn = false;
+  let hoveredElement: Element | null = null;
+  let pinnedElement: Element | null = null;
+  let previousCursor = "";
+  let panelOpen = options.panel !== false && safeRead(DEFAULT_PANEL_STORAGE_KEY) === "true";
+  let snapOverrides: Partial<Pick<Required<SnapOptions>, "elements" | "columns" | "guides">> = {};
   /** The guide that Backspace/Delete acts on. */
   let selectedId: string | null = null;
   let guides: Guide[] = [];
@@ -169,6 +277,20 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   // Rulers start in step with the grid, so enabling `rulers` doesn't change how
   // an existing setup looks on load. Shift+R moves them independently after that.
   rulersOn = normaliseRulers(options.rulers) !== null && visible;
+
+  const storedPanelPosition = safeRead(DEFAULT_PANEL_POSITION_STORAGE_KEY);
+  if (storedPanelPosition) {
+    try {
+      const position = JSON.parse(storedPanelPosition) as { x?: number; y?: number };
+      if (Number.isFinite(position.x) && Number.isFinite(position.y)) {
+        panel.style.left = `${position.x}px`;
+        panel.style.top = `${position.y}px`;
+        panel.style.right = "auto";
+      }
+    } catch {
+      // Ignore old or malformed position data.
+    }
+  }
 
   // ------------------------------------------------------------ rendering --
   function effectivePosition(): "fixed" | "absolute" {
@@ -253,7 +375,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   }
 
   function rulerConfig() {
-    return normaliseRulers(options.rulers);
+    return normaliseRulers(options.rulers) ?? (rulersOn ? normaliseRulers(true) : null);
   }
 
   function renderRulers() {
@@ -380,7 +502,174 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
   /** True when the rulers (and therefore the guides) should be drawn. */
   function rulersVisible() {
-    return rulerConfig() !== null && rulersOn;
+    return rulersOn;
+  }
+
+  function currentSnap() {
+    const configured = normaliseSnap(options.snap) ?? {
+      elements: false,
+      columns: false,
+      guides: false,
+      threshold: DEFAULT_SNAP_THRESHOLD,
+    };
+    return { ...configured, ...snapOverrides };
+  }
+
+  function setPressed(control: HTMLButtonElement, pressed: boolean) {
+    control.setAttribute("role", "switch");
+    control.setAttribute("aria-checked", String(pressed));
+    control.classList.toggle("gf-panel-row-on", pressed);
+  }
+
+  function renderPanel() {
+    const enabled = options.panel !== false;
+    if (!enabled) panelOpen = false;
+    panel.classList.toggle("gf-hidden", !enabled || !panelOpen);
+    if (!enabled || !panelOpen) return;
+
+    const snap = currentSnap();
+    const anyUnlocked = guides.some((guide) => !guide.locked);
+    setPressed(gridControl, isVisible());
+    setPressed(rulersControl, rulersOn);
+    setPressed(guidesControl, guidesOn);
+    setPressed(inspectorControl, inspectorOn);
+    setPressed(lockControl, guides.length > 0 && !anyUnlocked);
+    setPressed(snapElementsControl, snap.elements);
+    setPressed(snapColumnsControl, snap.columns);
+    setPressed(snapGuidesControl, snap.guides);
+    lockControl.disabled = guides.length === 0;
+    clearControl.disabled = guides.length === 0;
+    panelMeta.textContent = geometry
+      ? `${breakpoint} · ${geometry.columnCount} cols · ${geometry.gutter}px gap`
+      : breakpoint;
+  }
+
+  function inspectedElementAt(clientX: number, clientY: number) {
+    if (typeof document.elementsFromPoint !== "function") return null;
+    return (
+      document
+        .elementsFromPoint(clientX, clientY)
+        .find(
+          (element) =>
+            element !== host &&
+            !host.contains(element) &&
+            element !== document.body &&
+            element !== document.documentElement,
+        ) ?? null
+    );
+  }
+
+  function inspectorRect(element: Element) {
+    const rect = element.getBoundingClientRect();
+    const rootRect = options.container ? root.getBoundingClientRect() : null;
+    return {
+      left: rect.left - (rootRect?.left ?? 0),
+      top: rect.top - (rootRect?.top ?? 0),
+      right: rect.right - (rootRect?.left ?? 0),
+      bottom: rect.bottom - (rootRect?.top ?? 0),
+      width: rect.width,
+      height: rect.height,
+    };
+  }
+
+  function placeInspectorBox(box: HTMLElement, rect: ReturnType<typeof inspectorRect>) {
+    box.style.left = `${rect.left}px`;
+    box.style.top = `${rect.top}px`;
+    box.style.width = `${rect.width}px`;
+    box.style.height = `${rect.height}px`;
+  }
+
+  function rounded(value: number) {
+    return Math.round(value * 10) / 10;
+  }
+
+  function computedSpacing(element: Element) {
+    if (typeof getComputedStyle !== "function") return "";
+    const style = getComputedStyle(element);
+    const values = [
+      style.paddingTop,
+      style.paddingRight,
+      style.paddingBottom,
+      style.paddingLeft,
+    ].map((value) => Number.parseFloat(value) || 0);
+    return values.some(Boolean) ? `padding ${values.map(rounded).join(" ")}` : "";
+  }
+
+  function renderInspector() {
+    inspectorLayer.classList.toggle("gf-hidden", !inspectorOn);
+    if (!inspectorOn) return;
+    if (hoveredElement && !hoveredElement.isConnected) hoveredElement = null;
+    if (pinnedElement && !pinnedElement.isConnected) pinnedElement = null;
+
+    if (!hoveredElement) {
+      inspectorHover.classList.add("gf-hidden");
+      inspectorLabel.classList.add("gf-hidden");
+      inspectorDistance.classList.add("gf-hidden");
+      inspectorPinned.classList.toggle("gf-hidden", !pinnedElement);
+      if (pinnedElement) placeInspectorBox(inspectorPinned, inspectorRect(pinnedElement));
+      return;
+    }
+
+    const hoverRect = inspectorRect(hoveredElement);
+    placeInspectorBox(inspectorHover, hoverRect);
+    inspectorHover.classList.remove("gf-hidden");
+
+    const details = [
+      describeElement(hoveredElement),
+      `${rounded(hoverRect.width)} × ${rounded(hoverRect.height)}`,
+      computedSpacing(hoveredElement),
+    ].filter(Boolean);
+    inspectorLabel.replaceChildren();
+    for (const detail of details) {
+      const line = document.createElement("span");
+      line.textContent = detail;
+      inspectorLabel.append(line);
+    }
+    inspectorLabel.style.left = `${Math.max(8, hoverRect.left)}px`;
+    inspectorLabel.style.top = `${Math.max(8, hoverRect.top - 8)}px`;
+    inspectorLabel.classList.remove("gf-hidden");
+
+    const comparing = pinnedElement && pinnedElement !== hoveredElement;
+    inspectorPinned.classList.toggle("gf-hidden", !pinnedElement);
+    inspectorDistance.classList.toggle("gf-hidden", !comparing);
+    if (!pinnedElement) return;
+
+    const pinnedRect = inspectorRect(pinnedElement);
+    placeInspectorBox(inspectorPinned, pinnedRect);
+    if (!comparing) return;
+
+    const horizontalGap =
+      hoverRect.left >= pinnedRect.right
+        ? hoverRect.left - pinnedRect.right
+        : pinnedRect.left >= hoverRect.right
+          ? pinnedRect.left - hoverRect.right
+          : 0;
+    const verticalGap =
+      hoverRect.top >= pinnedRect.bottom
+        ? hoverRect.top - pinnedRect.bottom
+        : pinnedRect.top >= hoverRect.bottom
+          ? pinnedRect.top - hoverRect.bottom
+          : 0;
+    const leftDelta = Math.abs(hoverRect.left - pinnedRect.left);
+    const topDelta = Math.abs(hoverRect.top - pinnedRect.top);
+    inspectorDistance.textContent = `gap x ${rounded(horizontalGap)} · y ${rounded(verticalGap)}  |  align x ${rounded(leftDelta)} · y ${rounded(topDelta)}`;
+    inspectorDistance.style.left = `${Math.max(8, (hoverRect.left + pinnedRect.left) / 2)}px`;
+    inspectorDistance.style.top = `${Math.max(8, (hoverRect.top + pinnedRect.top) / 2)}px`;
+  }
+
+  function setInspector(next: boolean) {
+    if (inspectorOn === next) return;
+    inspectorOn = next;
+    if (next) {
+      previousCursor = document.documentElement.style.cursor;
+      document.documentElement.style.cursor = "crosshair";
+    } else {
+      document.documentElement.style.cursor = previousCursor;
+      hoveredElement = null;
+      pinnedElement = null;
+      inspectorLayer.classList.add("gf-hidden");
+    }
+    scheduleRender();
   }
 
   /*
@@ -390,14 +679,18 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
    */
   function render() {
     if (destroyed) return;
-    const showRoot = isVisible() || rulersVisible();
+    const showRoot =
+      isVisible() || rulersVisible() || inspectorOn || (options.panel !== false && panelOpen);
     root.classList.toggle("gf-hidden", !showRoot);
     if (!showRoot) return;
     geometry = currentGeometry();
     gridLayer.classList.toggle("gf-hidden", !isVisible());
+    guidesLayer.classList.toggle("gf-hidden", !guidesOn || (!isVisible() && !rulersVisible()));
     renderGrid();
     renderGuides();
     renderRulers();
+    renderInspector();
+    renderPanel();
   }
 
   function scheduleRender() {
@@ -413,9 +706,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (destroyed || frame) return;
     frame = requestAnimationFrame(() => {
       frame = 0;
-      if (!isVisible() && !rulersVisible()) return;
+      if (!isVisible() && !rulersVisible() && !inspectorOn) return;
       positionGuides();
       renderRulers();
+      renderInspector();
     });
   }
 
@@ -425,12 +719,12 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (controlledGuides() === undefined && persist) writeGuides(guidesKey(), guides);
     options.onGuidesChange?.(guides);
     renderGuides();
+    if (panelOpen) renderPanel();
   }
 
   function snapCandidates(axis: GuideAxis, clientX: number, clientY: number, excludeId?: string) {
-    const snap = normaliseSnap(options.snap);
+    const snap = currentSnap();
     const candidates: SnapCandidate[] = [];
-    if (!snap) return { snap, candidates };
 
     // Element rects are in viewport space; the grid is already in overlay space.
     const client = clientOffset();
@@ -491,6 +785,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   };
 
   let drag: DragState | null = null;
+  let panelDrag: { pointerId: number; offsetX: number; offsetY: number } | null = null;
   let previousUserSelect = "";
 
   /**
@@ -665,17 +960,46 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
   // -------------------------------------------------------------- events ---
   const onPointerMove = (event: PointerEvent) => {
-    if (!drag || event.pointerId !== drag.pointerId) return;
-    event.preventDefault();
-    updateDrag(event);
+    if (panelDrag && event.pointerId === panelDrag.pointerId) {
+      const rect = panel.getBoundingClientRect();
+      const maxX = Math.max(8, getViewportWidth() - rect.width - 8);
+      const maxY = Math.max(8, getViewportHeight() - rect.height - 8);
+      const x = Math.min(maxX, Math.max(8, event.clientX - panelDrag.offsetX));
+      const y = Math.min(maxY, Math.max(8, event.clientY - panelDrag.offsetY));
+      panel.style.left = `${x}px`;
+      panel.style.top = `${y}px`;
+      panel.style.right = "auto";
+      return;
+    }
+    if (drag && event.pointerId === drag.pointerId) {
+      event.preventDefault();
+      updateDrag(event);
+      return;
+    }
+    if (inspectorOn) {
+      hoveredElement = inspectedElementAt(event.clientX, event.clientY);
+      renderInspector();
+    }
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    if (panelDrag && event.pointerId === panelDrag.pointerId) {
+      panelDrag = null;
+      safeWrite(
+        DEFAULT_PANEL_POSITION_STORAGE_KEY,
+        JSON.stringify({ x: panel.offsetLeft, y: panel.offsetTop }),
+      );
+      return;
+    }
     if (!drag || event.pointerId !== drag.pointerId) return;
     endDrag(event, false);
   };
 
   const onPointerCancel = (event: PointerEvent) => {
+    if (panelDrag && event.pointerId === panelDrag.pointerId) {
+      panelDrag = null;
+      return;
+    }
     if (!drag || event.pointerId !== drag.pointerId) return;
     endDrag(event, true);
   };
@@ -714,12 +1038,31 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       }
     }
 
+    if (event.key === "Escape" && inspectorOn) {
+      event.preventDefault();
+      if (pinnedElement) {
+        pinnedElement = null;
+        renderInspector();
+      } else {
+        setInspector(false);
+      }
+      return;
+    }
+
     if (options.shortcut === false) return;
 
     const platform = typeof navigator !== "undefined" ? navigator.platform || "" : "";
     const isMac = /Mac|iPhone|iPad/.test(platform);
     const modKey = isMac ? event.metaKey : event.ctrlKey;
     const key = event.key.toLowerCase();
+
+    if (modKey && event.shiftKey && !event.altKey && key === "g") {
+      event.preventDefault();
+      panelOpen = !panelOpen;
+      safeWrite(DEFAULT_PANEL_STORAGE_KEY, String(panelOpen));
+      scheduleRender();
+      return;
+    }
 
     if (modKey && !event.shiftKey && !event.altKey && key === "g") {
       event.preventDefault();
@@ -738,14 +1081,77 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       event.preventDefault();
       const anyUnlocked = guides.some((guide) => !guide.locked);
       commitGuides(guides.map((guide) => ({ ...guide, locked: anyUnlocked })));
+      return;
+    }
+
+    if (event.shiftKey && !modKey && !event.altKey && key === "m") {
+      event.preventDefault();
+      setInspector(!inspectorOn);
     }
   };
 
   rulerX.addEventListener("pointerdown", (event) => onRulerPointerDown(event, "y"));
   rulerY.addEventListener("pointerdown", (event) => onRulerPointerDown(event, "x"));
   rulerCorner.addEventListener("click", () => clearGuides());
+  panelClose.addEventListener("click", () => {
+    panelOpen = false;
+    safeWrite(DEFAULT_PANEL_STORAGE_KEY, "false");
+    scheduleRender();
+  });
+  panelHeader.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || event.target === panelClose) return;
+    const rect = panel.getBoundingClientRect();
+    panelDrag = {
+      pointerId: event.pointerId,
+      offsetX: event.clientX - rect.left,
+      offsetY: event.clientY - rect.top,
+    };
+    event.preventDefault();
+  });
+  gridControl.addEventListener("click", () => setVisible(!isVisible()));
+  rulersControl.addEventListener("click", () => {
+    rulersOn = !rulersOn;
+    scheduleRender();
+  });
+  guidesControl.addEventListener("click", () => {
+    guidesOn = !guidesOn;
+    scheduleRender();
+  });
+  inspectorControl.addEventListener("click", () => setInspector(!inspectorOn));
+  lockControl.addEventListener("click", () => {
+    const anyUnlocked = guides.some((guide) => !guide.locked);
+    commitGuides(guides.map((guide) => ({ ...guide, locked: anyUnlocked })));
+    renderPanel();
+  });
+  snapElementsControl.addEventListener("click", () => {
+    snapOverrides.elements = !currentSnap().elements;
+    renderPanel();
+  });
+  snapColumnsControl.addEventListener("click", () => {
+    snapOverrides.columns = !currentSnap().columns;
+    renderPanel();
+  });
+  snapGuidesControl.addEventListener("click", () => {
+    snapOverrides.guides = !currentSnap().guides;
+    renderPanel();
+  });
+  clearControl.addEventListener("click", () => {
+    clearGuides();
+    renderPanel();
+  });
 
   const onWindowPointerDown = (event: PointerEvent) => {
+    if (inspectorOn && event.target !== host) {
+      const inspected = inspectedElementAt(event.clientX, event.clientY);
+      if (inspected) {
+        pinnedElement = pinnedElement === inspected ? null : inspected;
+        hoveredElement = inspected;
+        renderInspector();
+      }
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
     if (selectedId === null) return;
     // Shadow-DOM events retarget to the host, so a different target means the
     // click landed on the page rather than on a guide.
@@ -753,7 +1159,17 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     select(null);
   };
 
+  const blockPageInteraction = (event: Event) => {
+    if (!inspectorOn || event.target === host) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
   window.addEventListener("pointerdown", onWindowPointerDown, true);
+  window.addEventListener("pointerup", blockPageInteraction, true);
+  window.addEventListener("click", blockPageInteraction, true);
+  window.addEventListener("dblclick", blockPageInteraction, true);
+  window.addEventListener("contextmenu", blockPageInteraction, true);
   window.addEventListener("pointermove", onPointerMove, { passive: false });
   window.addEventListener("pointerup", onPointerUp);
   window.addEventListener("pointercancel", onPointerCancel);
@@ -797,14 +1213,20 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     update(next: GuideframeOptions) {
       if (destroyed) return;
       options = { ...next };
+      if (next.panel === false) panelOpen = false;
       if (next.guides !== undefined) guides = next.guides;
       scheduleRender();
     },
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      if (inspectorOn) document.documentElement.style.cursor = previousCursor;
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("pointerdown", onWindowPointerDown, true);
+      window.removeEventListener("pointerup", blockPageInteraction, true);
+      window.removeEventListener("click", blockPageInteraction, true);
+      window.removeEventListener("dblclick", blockPageInteraction, true);
+      window.removeEventListener("contextmenu", blockPageInteraction, true);
       window.removeEventListener("pointermove", onPointerMove);
       window.removeEventListener("pointerup", onPointerUp);
       window.removeEventListener("pointercancel", onPointerCancel);

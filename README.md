@@ -41,10 +41,17 @@ const guideframe = createGuideframe({ rulers: true });
   was hit (`section.feature left`). Hold <kbd>Alt</kbd> to place freely.
 - **Scoped overlays** — scope the grid and guides to a single component with
   `container`.
+- **Control panel** — open a compact floating panel to manage every overlay
+  layer and snapping mode without memorising shortcuts.
+- **Geometry inspector** — hover rendered elements for exact dimensions and
+  padding, then pin one to compare gaps and alignment with another. Page
+  interactions pause during inspection, preventing accidental activation.
 
 Keyboard: <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>G</kbd> toggles the overlay,
+<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>G</kbd> opens the control panel,
 <kbd>Shift</kbd>+<kbd>R</kbd> the rulers, <kbd>Shift</kbd>+<kbd>L</kbd> locks
-guides, <kbd>Esc</kbd> cancels a drag.
+guides, <kbd>Shift</kbd>+<kbd>M</kbd> toggles geometry inspection, and
+<kbd>Esc</kbd> cancels a drag or clears a pinned inspection.
 
 The overlay lives in a shadow root on `<body>`, so host CSS can't affect it and
 it can't affect host layout. It is inert in production unless you pass
