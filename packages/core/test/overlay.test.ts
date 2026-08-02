@@ -16,8 +16,9 @@ function flush() {
 }
 
 beforeEach(() => {
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(0), 0) as unknown as number,
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
   );
   vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
   Object.defineProperty(document.documentElement, "clientWidth", {
@@ -27,7 +28,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  document.querySelectorAll(`[${ROOT_ATTRIBUTE}]`).forEach((node) => node.remove());
+  document.querySelectorAll(`[${ROOT_ATTRIBUTE}]`).forEach((node) => {
+    node.remove();
+  });
   document.body.innerHTML = "";
   localStorage.clear();
   vi.unstubAllGlobals();
@@ -129,9 +132,7 @@ describe("createGuideframe", () => {
 
     const input = document.createElement("input");
     document.body.append(input);
-    input.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", metaKey: true, bubbles: true }),
-    );
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, bubbles: true }));
     expect(instance.isVisible()).toBe(true);
 
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true }));
@@ -192,9 +193,7 @@ describe("createGuideframe", () => {
     const instance = createGuideframe({
       defaultGuides: [{ id: "a", axis: "x", position: 200, locked: true }],
     });
-    expect(shadow()?.querySelector(".gf-guide")?.classList.contains("gf-guide-locked")).toBe(
-      true,
-    );
+    expect(shadow()?.querySelector(".gf-guide")?.classList.contains("gf-guide-locked")).toBe(true);
     instance.destroy();
   });
 
@@ -247,6 +246,109 @@ describe("createGuideframe", () => {
     instance.destroy();
   });
 
+  it("Option-drag duplicates a guide and moves the copy", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 21,
+        clientX: 100,
+        altKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { pointerId: 21, clientX: 300, bubbles: true }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", { pointerId: 21, clientX: 300, bubbles: true }),
+    );
+
+    expect(instance.getGuides()).toHaveLength(2);
+    expect(instance.getGuides().find((guide) => guide.id === "a")?.position).toBe(100);
+    expect(instance.getGuides().find((guide) => guide.id !== "a")?.position).toBe(300);
+    instance.destroy();
+  });
+
+  it("Escape discards an Option-dragged duplicate", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 22,
+        clientX: 100,
+        altKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { pointerId: 22, clientX: 300, bubbles: true }),
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
+
+    expect(instance.getGuides()).toEqual([{ id: "a", axis: "x", position: 100 }]);
+    instance.destroy();
+  });
+
+  it("does not duplicate on an Option-click without a drag", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 24,
+        clientX: 100,
+        altKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", { pointerId: 24, clientX: 100, bubbles: true }),
+    );
+
+    expect(instance.getGuides()).toEqual([{ id: "a", axis: "x", position: 100 }]);
+    instance.destroy();
+  });
+
+  it("Command or Ctrl temporarily bypasses guide snapping", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "x", position: 200 },
+      ],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 23, clientX: 100 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        pointerId: 23,
+        clientX: 196,
+        bubbles: true,
+        metaKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", { pointerId: 23, clientX: 196, bubbles: true }),
+    );
+
+    expect(instance.getGuides().find((guide) => guide.id === "a")?.position).toBe(196);
+    instance.destroy();
+  });
+
   it("deletes the selected guide with Delete too", () => {
     const instance = createGuideframe({
       defaultGuides: [{ id: "a", axis: "y", position: 40 }],
@@ -255,6 +357,268 @@ describe("createGuideframe", () => {
     hit.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 2 }));
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
     expect(instance.getGuides()).toEqual([]);
+    instance.destroy();
+  });
+
+  it("Shift-drag selects intersecting unlocked guides for batch deletion", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "inside-x", axis: "x", position: 100 },
+        { id: "outside-x", axis: "x", position: 300 },
+        { id: "inside-y", axis: "y", position: 150 },
+        { id: "locked", axis: "x", position: 120, locked: true },
+      ],
+    });
+
+    document.body.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 25,
+        clientX: 50,
+        clientY: 50,
+        shiftKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: true,
+        pointerId: 25,
+        clientX: 200,
+        clientY: 200,
+        shiftKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerId: 25,
+        clientX: 200,
+        clientY: 200,
+        shiftKey: true,
+      }),
+    );
+
+    expect(shadow()?.querySelectorAll(".gf-guide-selected")).toHaveLength(2);
+    expect(shadow()?.querySelector(".gf-selection-status")?.textContent).toBe("2 guides selected");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Backspace" }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["outside-x", "locked"]);
+    instance.destroy();
+  });
+
+  it("Shift-click adds and removes guides from the selection", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "x", position: 200 },
+      ],
+    });
+
+    const hit = (id: string) =>
+      shadow()?.querySelector(`[data-guide-id="${id}"] .gf-guide-hit`) as HTMLElement;
+    hit("a").dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 26 }),
+    );
+    window.dispatchEvent(new PointerEvent("pointerup", { pointerId: 26 }));
+    hit("b").dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 27,
+        shiftKey: true,
+      }),
+    );
+    expect(shadow()?.querySelectorAll(".gf-guide-selected")).toHaveLength(2);
+
+    hit("a").dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 28,
+        shiftKey: true,
+      }),
+    );
+    expect(shadow()?.querySelectorAll(".gf-guide-selected")).toHaveLength(1);
+    expect(
+      shadow()?.querySelector('[data-guide-id="b"]')?.classList.contains("gf-guide-selected"),
+    ).toBe(true);
+    instance.destroy();
+  });
+
+  it("undoes a completed guide move", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", { bubbles: true, button: 0, pointerId: 29, clientX: 100 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerId: 29, clientX: 300 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, pointerId: 29, clientX: 300 }),
+    );
+    expect(instance.getGuides()[0].position).toBe(300);
+
+    const nativeUndo = new KeyboardEvent("keydown", {
+      key: "z",
+      ctrlKey: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(nativeUndo);
+    expect(nativeUndo.defaultPrevented).toBe(false);
+    expect(instance.getGuides()[0].position).toBe(300);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides()[0].position).toBe(100);
+    instance.destroy();
+  });
+
+  it("undoes batch deletion in one step", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "x", position: 150 },
+        { id: "c", axis: "x", position: 300 },
+      ],
+    });
+
+    document.body.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 30,
+        clientX: 50,
+        clientY: 50,
+        shiftKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", {
+        bubbles: true,
+        pointerId: 30,
+        clientX: 200,
+        clientY: 200,
+        shiftKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", {
+        bubbles: true,
+        pointerId: 30,
+        clientX: 200,
+        clientY: 200,
+        shiftKey: true,
+      }),
+    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "Delete" }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["c"]);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["a", "b", "c"]);
+    instance.destroy();
+  });
+
+  it("undoes clearing every guide", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "y", position: 200 },
+      ],
+    });
+
+    instance.clearGuides();
+    expect(instance.getGuides()).toEqual([]);
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["a", "b"]);
+    instance.destroy();
+  });
+
+  it("undoes an Option-dragged duplicate without changing its source", () => {
+    const instance = createGuideframe({
+      defaultGuides: [{ id: "a", axis: "x", position: 100 }],
+    });
+
+    const hit = shadow()?.querySelector('[data-guide-id="a"] .gf-guide-hit') as HTMLElement;
+    hit.dispatchEvent(
+      new PointerEvent("pointerdown", {
+        bubbles: true,
+        button: 0,
+        pointerId: 31,
+        clientX: 100,
+        altKey: true,
+      }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointermove", { bubbles: true, pointerId: 31, clientX: 300 }),
+    );
+    window.dispatchEvent(
+      new PointerEvent("pointerup", { bubbles: true, pointerId: 31, clientX: 300 }),
+    );
+    expect(instance.getGuides()).toHaveLength(2);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides()).toEqual([{ id: "a", axis: "x", position: 100 }]);
+    instance.destroy();
+  });
+
+  it("nudges multiple selected guides and undoes a repeated sequence once", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "a", axis: "x", position: 100 },
+        { id: "b", axis: "x", position: 200 },
+        { id: "locked", axis: "x", position: 300, locked: true },
+        { id: "horizontal", axis: "y", position: 400 },
+      ],
+    });
+
+    for (const [index, id] of ["a", "b", "locked", "horizontal"].entries()) {
+      const hit = shadow()?.querySelector(`[data-guide-id="${id}"] .gf-guide-hit`) as HTMLElement;
+      hit.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          pointerId: 40 + index,
+          shiftKey: true,
+        }),
+      );
+    }
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", shiftKey: true }));
+
+    expect(instance.getGuides().map((guide) => guide.position)).toEqual([111, 211, 300, 400]);
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides().map((guide) => guide.position)).toEqual([100, 200, 300, 400]);
+    instance.destroy();
+  });
+
+  it("uses vertical arrow keys only for horizontal guides", () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "vertical", axis: "x", position: 100 },
+        { id: "horizontal", axis: "y", position: 200 },
+      ],
+    });
+
+    for (const [index, id] of ["vertical", "horizontal"].entries()) {
+      const hit = shadow()?.querySelector(`[data-guide-id="${id}"] .gf-guide-hit`) as HTMLElement;
+      hit.dispatchEvent(
+        new PointerEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          pointerId: 50 + index,
+          shiftKey: true,
+        }),
+      );
+    }
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp" }));
+    expect(instance.getGuides().map((guide) => guide.position)).toEqual([100, 199]);
     instance.destroy();
   });
 
@@ -354,9 +718,7 @@ describe("createGuideframe", () => {
   it("does not persist guides in controlled mode", () => {
     const instance = createGuideframe({ guides: [] });
     instance.setGuides([{ id: "a", axis: "x", position: 5 }]);
-    expect(
-      localStorage.getItem(`guideframe:guides::${window.location.pathname}`),
-    ).toBeNull();
+    expect(localStorage.getItem(`guideframe:guides::${window.location.pathname}`)).toBeNull();
     instance.destroy();
   });
 
@@ -400,9 +762,7 @@ describe("createGuideframe", () => {
     expect(root?.classList.contains("gf-hidden")).toBe(false);
     expect(shadow()?.querySelector(".gf-ruler-x")?.classList.contains("gf-hidden")).toBe(false);
     // ...and the grid columns stay hidden, because only the rulers were asked for.
-    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
-      true,
-    );
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(true);
     instance.destroy();
   });
 
@@ -419,9 +779,7 @@ describe("createGuideframe", () => {
     window.dispatchEvent(new KeyboardEvent("keydown", { key: "R", shiftKey: true }));
     await flush();
     expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(false);
-    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
-      true,
-    );
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(true);
     instance.destroy();
   });
 
@@ -433,14 +791,10 @@ describe("createGuideframe", () => {
     expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(true);
 
     // Toggling the grid on brings the rulers with it.
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", ctrlKey: true, metaKey: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", ctrlKey: true, metaKey: true }));
     await flush();
     expect(shadow()?.querySelector(".gf-root")?.classList.contains("gf-hidden")).toBe(false);
-    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(
-      false,
-    );
+    expect(shadow()?.querySelector(".gf-grid-layer")?.classList.contains("gf-hidden")).toBe(false);
     expect(shadow()?.querySelector(".gf-ruler-x")?.classList.contains("gf-hidden")).toBe(false);
     instance.destroy();
   });
@@ -481,9 +835,7 @@ describe("createGuideframe", () => {
     const panel = shadow()?.querySelector(".gf-panel");
     expect(panel?.classList.contains("gf-hidden")).toBe(true);
 
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }));
     await flush();
 
     expect(panel?.classList.contains("gf-hidden")).toBe(false);
@@ -497,13 +849,12 @@ describe("createGuideframe", () => {
       rulers: true,
       defaultGuides: [{ id: "a", axis: "x", position: 10 }],
     });
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }));
     await flush();
 
     const controls = Array.from(shadow()?.querySelectorAll<HTMLButtonElement>("button") ?? []);
-    const control = (label: string) => controls.find((button) => button.textContent?.includes(label));
+    const control = (label: string) =>
+      controls.find((button) => button.textContent?.includes(label));
 
     expect(control("Grid")?.getAttribute("aria-checked")).toBe("true");
     control("Grid")?.click();
@@ -519,17 +870,42 @@ describe("createGuideframe", () => {
     expect(instance.getGuides()[0].locked).toBe(true);
     expect(control("Lock guides")?.getAttribute("aria-checked")).toBe("true");
 
-    control("Clear all guides")?.click();
+    control("Clear…")?.click();
+    expect(control("Clear…")?.getAttribute("aria-expanded")).toBe("true");
+    control("All guides")?.click();
     expect(instance.getGuides()).toEqual([]);
-    expect(control("Clear all guides")?.disabled).toBe(true);
+    expect(control("Clear…")?.disabled).toBe(true);
+    instance.destroy();
+  });
+
+  it("clears guides by axis from the compact menu and undoes the action", async () => {
+    const instance = createGuideframe({
+      defaultGuides: [
+        { id: "vertical", axis: "x", position: 100 },
+        { id: "horizontal", axis: "y", position: 200 },
+      ],
+    });
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }));
+    await flush();
+
+    const control = (label: string) =>
+      Array.from(shadow()?.querySelectorAll<HTMLButtonElement>("button") ?? []).find((button) =>
+        button.textContent?.includes(label),
+      );
+    control("Clear…")?.click();
+    control("Horizontal guides")?.click();
+
+    expect(instance.getGuides()).toEqual([{ id: "vertical", axis: "x", position: 100 }]);
+    expect(control("Clear…")?.getAttribute("aria-expanded")).toBe("false");
+
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "z", shiftKey: true }));
+    expect(instance.getGuides().map((guide) => guide.id)).toEqual(["vertical", "horizontal"]);
     instance.destroy();
   });
 
   it("can disable the control panel", async () => {
     const instance = createGuideframe({ panel: false });
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }));
     await flush();
     expect(shadow()?.querySelector(".gf-panel")?.classList.contains("gf-hidden")).toBe(true);
     instance.destroy();
@@ -687,9 +1063,7 @@ describe("createGuideframe", () => {
 
   it("keeps GuideFrame panel controls interactive during inspection", async () => {
     const instance = createGuideframe();
-    window.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }),
-    );
+    window.dispatchEvent(new KeyboardEvent("keydown", { key: "g", metaKey: true, shiftKey: true }));
     await flush();
     const controls = Array.from(shadow()?.querySelectorAll<HTMLButtonElement>("button") ?? []);
     const inspectorToggle = controls.find((button) =>
@@ -716,9 +1090,7 @@ describe("createGuideframe", () => {
     const instance = createGuideframe({ container, rulers: true });
     expect(container.querySelector(`[${ROOT_ATTRIBUTE}]`)).not.toBeNull();
     expect(
-      (shadow()?.querySelector(".gf-root") as HTMLElement).style.getPropertyValue(
-        "--gf-position",
-      ),
+      (shadow()?.querySelector(".gf-root") as HTMLElement).style.getPropertyValue("--gf-position"),
     ).toBe("absolute");
     instance.destroy();
     expect(container.querySelector(`[${ROOT_ATTRIBUTE}]`)).toBeNull();

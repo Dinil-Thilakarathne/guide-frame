@@ -17,8 +17,9 @@ function shadow() {
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 beforeEach(() => {
-  vi.stubGlobal("requestAnimationFrame", (cb: FrameRequestCallback) =>
-    setTimeout(() => cb(0), 0) as unknown as number,
+  vi.stubGlobal(
+    "requestAnimationFrame",
+    (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0) as unknown as number,
   );
   vi.stubGlobal("cancelAnimationFrame", (id: number) => clearTimeout(id));
   Object.defineProperty(document.documentElement, "clientWidth", {
@@ -32,7 +33,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  document.querySelectorAll(ROOT).forEach((node) => node.remove());
+  document.querySelectorAll(ROOT).forEach((node) => {
+    node.remove();
+  });
   document.body.innerHTML = "";
   localStorage.clear();
   vi.unstubAllGlobals();
@@ -75,9 +78,7 @@ describe("GuideframeGrid", () => {
   });
 
   it("applies responsive props", () => {
-    render(
-      <GuideframeGrid columns={{ desktop: 10 }} gutter={32} margin={40} maxWidth={1280} />,
-    );
+    render(<GuideframeGrid columns={{ desktop: 10 }} gutter={32} margin={40} maxWidth={1280} />);
     const grid = shadow()?.querySelector(".gf-grid") as HTMLElement;
     expect(grid.style.gridTemplateColumns).toBe("repeat(10, minmax(0, 1fr))");
     expect(grid.style.columnGap).toBe("32px");

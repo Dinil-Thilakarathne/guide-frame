@@ -5,7 +5,7 @@ export default function LayoutWrapper({
 }) {
   return (
     <main
-      className="relative mx-auto flex min-h-svh max-w-2xl flex-col px-2 pt-24 lg:pt-32"
+      className="relative mx-auto flex min-h-svh max-w-2xl flex-col px-4 pt-12 sm:px-5 sm:pt-20 lg:pt-24"
       id="scrollable"
     >
       {/* progressive blur top */}

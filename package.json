@@ -1,7 +1,7 @@
 {
   "name": "guide-frame",
   "private": true,
-  "version": "0.2.0-beta.2",
+  "version": "0.2.0-beta.5",
   "packageManager": "npm@11.9.0",
   "workspaces": [
     "packages/*",
@@ -9,30 +9,60 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @guideframe/core && npm run build --workspace @guideframe/react && npm run build --workspace guideframe-demo",
+    "check": "npm run format:check && npm run lint && npm test && npm run type-check && npm run build",
     "dev": "npm run dev --workspace guideframe-demo",
+    "format": "biome format --write packages examples package.json tsconfig.base.json biome.json",
+    "format:check": "biome format packages examples package.json tsconfig.base.json biome.json",
+    "lint": "biome lint packages examples package.json tsconfig.base.json biome.json",
     "publish:beta": "npm run build --workspace @guideframe/core && npm run build --workspace @guideframe/react && npm publish --workspace @guideframe/core --tag beta && npm publish --workspace @guideframe/react --tag beta",
     "test": "npm run test --workspace @guideframe/core && npm run test --workspace @guideframe/react",
     "type-check": "npm run typecheck --workspace @guideframe/core && npm run typecheck --workspace @guideframe/react && npm run typecheck --workspace guideframe-demo"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "design-engineering",
+    "layout-grid",
+    "rulers",
+    "guides",
+    "react",
+    "nextjs"
+  ],
+  "author": "Dinil Thilakarathne",
   "license": "MIT",
-  "description": "GuideFrame layout grid overlay for React and Next.js development.",
+  "description": "Framework-agnostic layout grids, rulers, and draggable guides for browser development.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Dinil-Thilakarathne/guide-frame.git"
+  },
+  "homepage": "https://github.com/Dinil-Thilakarathne/guide-frame#readme",
+  "bugs": {
+    "url": "https://github.com/Dinil-Thilakarathne/guide-frame/issues"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=11"
+  },
   "dependencies": {
     "react": "^19.2.5",
     "react-dom": "^19.2.5"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.2.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.1",
+    "esbuild": "0.28.1",
     "jsdom": "^29.0.2",
     "tsup": "^8.5.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.8",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "tsup": {
+      "esbuild": "0.28.1"
+    }
   }
 }

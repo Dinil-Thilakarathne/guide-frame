@@ -1,4 +1,5 @@
 import {
+  canUseDOM,
   DEFAULT_BREAKPOINTS,
   DEFAULT_COLOR,
   DEFAULT_COLUMNS,
@@ -12,13 +13,12 @@ import {
   DEFAULT_SNAP_THRESHOLD,
   DEFAULT_STORAGE_KEY,
   DEFAULT_Z_INDEX,
-  ROOT_ATTRIBUTE,
-  canUseDOM,
   getBreakpoint,
   getViewportHeight,
   getViewportWidth,
   isEditableTarget,
   isProduction,
+  ROOT_ATTRIBUTE,
   resolveResponsiveValue,
   safeRead,
   safeWrite,
@@ -28,8 +28,8 @@ import {
   computeGridGeometry,
   describeElement,
   elementEdges,
-  pickClosest,
   type GridGeometry,
+  pickClosest,
   type SnapCandidate,
 } from "./geometry";
 import { createGuideId, readGuides, writeGuides } from "./guides-store";
@@ -44,8 +44,8 @@ import type {
   SnapOptions,
 } from "./types";
 
-export * from "./types";
 export { createGuideId } from "./guides-store";
+export * from "./types";
 
 const NOOP_INSTANCE: GuideframeInstance = {
   update: () => {},
@@ -150,6 +150,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const guidesLayer = document.createElement("div");
   guidesLayer.className = "gf-guides-layer";
 
+  const selectionLayer = document.createElement("div");
+  selectionLayer.className = "gf-selection-layer gf-hidden";
+  const selectionBox = document.createElement("div");
+  selectionBox.className = "gf-selection-box";
+  selectionLayer.append(selectionBox);
+  const selectionStatus = document.createElement("div");
+  selectionStatus.className = "gf-selection-status gf-hidden";
+  selectionStatus.setAttribute("role", "status");
+
   const inspectorLayer = document.createElement("div");
   inspectorLayer.className = "gf-inspector-layer gf-hidden";
   const inspectorHover = document.createElement("div");
@@ -214,7 +223,39 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const clearControl = document.createElement("button");
   clearControl.type = "button";
   clearControl.className = "gf-panel-clear";
-  clearControl.textContent = "Clear all guides";
+  clearControl.setAttribute("aria-haspopup", "menu");
+  const clearLabel = document.createElement("span");
+  clearLabel.textContent = "Clear…";
+  const clearChevron = document.createElement("span");
+  clearChevron.className = "gf-panel-clear-chevron";
+  clearChevron.setAttribute("aria-hidden", "true");
+  clearChevron.textContent = "›";
+  clearControl.append(clearLabel, clearChevron);
+  const clearMenu = document.createElement("div");
+  clearMenu.className = "gf-panel-clear-menu gf-hidden";
+  clearMenu.setAttribute("role", "menu");
+  const clearMenuId = `gf-clear-menu-${createGuideId()}`;
+  clearMenu.id = clearMenuId;
+  clearControl.setAttribute("aria-controls", clearMenuId);
+  const createClearAction = (label: string) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "gf-panel-clear-action";
+    button.setAttribute("role", "menuitem");
+    button.textContent = label;
+    return button;
+  };
+  const clearSelectedControl = createClearAction("Selected guides");
+  const clearHorizontalControl = createClearAction("Horizontal guides");
+  const clearVerticalControl = createClearAction("Vertical guides");
+  const clearAllControl = createClearAction("All guides");
+  clearAllControl.classList.add("gf-panel-clear-action-danger");
+  clearMenu.append(
+    clearSelectedControl,
+    clearHorizontalControl,
+    clearVerticalControl,
+    clearAllControl,
+  );
   panelBody.append(
     gridControl,
     rulersControl,
@@ -226,12 +267,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     snapColumnsControl,
     snapGuidesControl,
     clearControl,
+    clearMenu,
   );
   panel.append(panelHeader, panelBody);
 
   root.append(
     gridLayer,
     guidesLayer,
+    selectionLayer,
+    selectionStatus,
     inspectorLayer,
     rulerX,
     rulerY,
@@ -251,11 +295,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   let hoveredElement: Element | null = null;
   let pinnedElement: Element | null = null;
   let previousCursor = "";
+  let suppressNextPageClick = false;
   let panelOpen = options.panel !== false && safeRead(DEFAULT_PANEL_STORAGE_KEY) === "true";
-  let snapOverrides: Partial<Pick<Required<SnapOptions>, "elements" | "columns" | "guides">> = {};
-  /** The guide that Backspace/Delete acts on. */
-  let selectedId: string | null = null;
+  let clearMenuOpen = false;
+  const snapOverrides: Partial<Pick<Required<SnapOptions>, "elements" | "columns" | "guides">> = {};
+  /** The guides that Backspace/Delete acts on. */
+  let selectedIds = new Set<string>();
   let guides: Guide[] = [];
+  const guideHistory: Guide[][] = [];
+  let nudgeSequence: { key: string; timeout: ReturnType<typeof setTimeout> } | null = null;
   let geometry: GridGeometry | null = null;
   let breakpoint: Breakpoint = "desktop";
   let frame = 0;
@@ -281,7 +329,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const storedPanelPosition = safeRead(DEFAULT_PANEL_POSITION_STORAGE_KEY);
   if (storedPanelPosition) {
     try {
-      const position = JSON.parse(storedPanelPosition) as { x?: number; y?: number };
+      const position = JSON.parse(storedPanelPosition) as {
+        x?: number;
+        y?: number;
+      };
       if (Number.isFinite(position.x) && Number.isFinite(position.y)) {
         panel.style.left = `${position.x}px`;
         panel.style.top = `${position.y}px`;
@@ -295,7 +346,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   // ------------------------------------------------------------ rendering --
   function effectivePosition(): "fixed" | "absolute" {
     // A scoped overlay can never be `fixed` — it would escape its container.
-    return options.container ? "absolute" : options.position ?? "fixed";
+    return options.container ? "absolute" : (options.position ?? "fixed");
   }
 
   /*
@@ -335,7 +386,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     const viewportWidth = overlayWidth();
     breakpoint =
       options.activeBreakpoint ??
-      getBreakpoint(viewportWidth, { ...DEFAULT_BREAKPOINTS, ...options.breakpoints });
+      getBreakpoint(viewportWidth, {
+        ...DEFAULT_BREAKPOINTS,
+        ...options.breakpoints,
+      });
 
     return computeGridGeometry({
       viewportWidth,
@@ -472,7 +526,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       }
       const classes = ["gf-guide", `gf-guide-${guide.axis}`];
       if (guide.locked) classes.push("gf-guide-locked");
-      if (guide.id === selectedId) classes.push("gf-guide-selected");
+      if (selectedIds.has(guide.id)) classes.push("gf-guide-selected");
       element.className = classes.join(" ");
       element.dataset.guideId = guide.id;
     }
@@ -484,6 +538,13 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     }
 
     positionGuides();
+    renderSelectionStatus();
+  }
+
+  function renderSelectionStatus() {
+    const count = selectedIds.size;
+    selectionStatus.classList.toggle("gf-hidden", count < 2);
+    selectionStatus.textContent = count < 2 ? "" : `${count} guides selected`;
   }
 
   function positionGuides() {
@@ -523,11 +584,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
   function renderPanel() {
     const enabled = options.panel !== false;
-    if (!enabled) panelOpen = false;
+    if (!enabled) {
+      panelOpen = false;
+      clearMenuOpen = false;
+    }
     panel.classList.toggle("gf-hidden", !enabled || !panelOpen);
     if (!enabled || !panelOpen) return;
 
     const snap = currentSnap();
+    if (guides.length === 0) clearMenuOpen = false;
     const anyUnlocked = guides.some((guide) => !guide.locked);
     setPressed(gridControl, isVisible());
     setPressed(rulersControl, rulersOn);
@@ -539,6 +604,15 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     setPressed(snapGuidesControl, snap.guides);
     lockControl.disabled = guides.length === 0;
     clearControl.disabled = guides.length === 0;
+    clearControl.setAttribute("aria-expanded", String(clearMenuOpen));
+    clearControl.classList.toggle("gf-panel-clear-open", clearMenuOpen);
+    clearMenu.classList.toggle("gf-hidden", !clearMenuOpen);
+    clearSelectedControl.disabled = !guides.some(
+      (guide) => selectedIds.has(guide.id) && !guide.locked,
+    );
+    clearHorizontalControl.disabled = !guides.some((guide) => guide.axis === "y");
+    clearVerticalControl.disabled = !guides.some((guide) => guide.axis === "x");
+    clearAllControl.disabled = guides.length === 0;
     panelMeta.textContent = geometry
       ? `${breakpoint} · ${geometry.columnCount} cols · ${geometry.gutter}px gap`
       : breakpoint;
@@ -722,6 +796,48 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (panelOpen) renderPanel();
   }
 
+  function cloneGuides(value: Guide[]) {
+    return value.map((guide) => ({ ...guide }));
+  }
+
+  function guidesMatch(a: Guide[], b: Guide[]) {
+    return (
+      a.length === b.length &&
+      a.every((guide, index) => {
+        const other = b[index];
+        return (
+          guide.id === other?.id &&
+          guide.axis === other.axis &&
+          guide.position === other.position &&
+          Boolean(guide.locked) === Boolean(other.locked)
+        );
+      })
+    );
+  }
+
+  function finishNudgeSequence() {
+    if (!nudgeSequence) return;
+    clearTimeout(nudgeSequence.timeout);
+    nudgeSequence = null;
+  }
+
+  function recordGuideHistory(previous: Guide[], next: Guide[]) {
+    finishNudgeSequence();
+    if (guidesMatch(previous, next)) return;
+    guideHistory.push(cloneGuides(previous));
+    if (guideHistory.length > 50) guideHistory.shift();
+  }
+
+  function undoGuideChange() {
+    finishNudgeSequence();
+    const previous = guideHistory.pop();
+    if (!previous) return false;
+    const previousIds = new Set(previous.map((guide) => guide.id));
+    selectedIds = new Set([...selectedIds].filter((id) => previousIds.has(id)));
+    commitGuides(cloneGuides(previous));
+    return true;
+  }
+
   function snapCandidates(axis: GuideAxis, clientX: number, clientY: number, excludeId?: string) {
     const snap = currentSnap();
     const candidates: SnapCandidate[] = [];
@@ -756,7 +872,8 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     }
 
     if (snap.elements && typeof document.elementsFromPoint === "function") {
-      const stack = document.elementsFromPoint(clientX, clientY)
+      const stack = document
+        .elementsFromPoint(clientX, clientY)
         .filter(
           (element) =>
             element !== host &&
@@ -776,8 +893,14 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   type DragState = {
     id: string;
     axis: GuideAxis;
-    /** Created by dragging off a ruler — dropping it back on the ruler cancels. */
-    fromRuler: boolean;
+    /** Created for this drag, either from a ruler or by duplicating a guide. */
+    createdDuringDrag: boolean;
+    /** A duplicate is discarded if Option was clicked without an actual drag. */
+    duplicated: boolean;
+    startPointerPosition: number;
+    moved: boolean;
+    /** Guide state before this gesture, recorded only if the gesture commits. */
+    historySnapshot: Guide[];
     /** Where the guide sat before the drag, so Escape can put it back. */
     originPosition: number;
     pointerId: number;
@@ -785,7 +908,18 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   };
 
   let drag: DragState | null = null;
-  let panelDrag: { pointerId: number; offsetX: number; offsetY: number } | null = null;
+  let marquee: {
+    pointerId: number;
+    startX: number;
+    startY: number;
+    currentX: number;
+    currentY: number;
+  } | null = null;
+  let panelDrag: {
+    pointerId: number;
+    offsetX: number;
+    offsetY: number;
+  } | null = null;
   let previousUserSelect = "";
 
   /**
@@ -807,6 +941,62 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     document.documentElement.style.userSelect = previousUserSelect;
   }
 
+  function updateMarquee(event: PointerEvent) {
+    if (!marquee) return;
+    marquee.currentX = event.clientX;
+    marquee.currentY = event.clientY;
+
+    const left = Math.min(marquee.startX, marquee.currentX);
+    const right = Math.max(marquee.startX, marquee.currentX);
+    const top = Math.min(marquee.startY, marquee.currentY);
+    const bottom = Math.max(marquee.startY, marquee.currentY);
+    const rootRect = root.getBoundingClientRect();
+    selectionBox.style.left = `${left - rootRect.left}px`;
+    selectionBox.style.top = `${top - rootRect.top}px`;
+    selectionBox.style.width = `${right - left}px`;
+    selectionBox.style.height = `${bottom - top}px`;
+
+    const offset = clientOffset();
+    selectedIds = new Set(
+      guides
+        .filter((guide) => {
+          if (guide.locked) return false;
+          const clientPosition = guide.position - (guide.axis === "x" ? offset.x : offset.y);
+          return guide.axis === "x"
+            ? clientPosition >= left && clientPosition <= right
+            : clientPosition >= top && clientPosition <= bottom;
+        })
+        .map((guide) => guide.id),
+    );
+    renderGuides();
+  }
+
+  function beginMarquee(event: PointerEvent) {
+    finishNudgeSequence();
+    marquee = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      currentX: event.clientX,
+      currentY: event.clientY,
+    };
+    selectedIds.clear();
+    selectionLayer.classList.remove("gf-hidden");
+    suppressSelection();
+    updateMarquee(event);
+  }
+
+  function endMarquee() {
+    marquee = null;
+    selectionLayer.classList.add("gf-hidden");
+    restoreSelection();
+    renderGuides();
+    suppressNextPageClick = true;
+    setTimeout(() => {
+      suppressNextPageClick = false;
+    }, 0);
+  }
+
   function pointerPosition(event: PointerEvent, axis: GuideAxis) {
     const offset = clientOffset();
     return axis === "x" ? event.clientX + offset.x : event.clientY + offset.y;
@@ -815,8 +1005,9 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   function updateDrag(event: PointerEvent) {
     if (!drag) return;
     const raw = pointerPosition(event, drag.axis);
-    // Alt is the universal "ignore snapping" modifier, same as Figma.
-    const bypass = event.altKey;
+    if (Math.abs(raw - drag.startPointerPosition) >= 2) drag.moved = true;
+    // Alt/Option is reserved for duplicating an existing guide on pointerdown.
+    const bypass = event.metaKey || event.ctrlKey;
     const { snap, candidates } = bypass
       ? { snap: null, candidates: [] }
       : snapCandidates(drag.axis, event.clientX, event.clientY, drag.id);
@@ -826,9 +1017,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       : { position: raw, kind: "none" as const, label: "" };
 
     const position = Math.round(result.position * 100) / 100;
-    const next = guides.map((guide) =>
-      guide.id === drag?.id ? { ...guide, position } : guide,
-    );
+    const next = guides.map((guide) => (guide.id === drag?.id ? { ...guide, position } : guide));
     guides = next;
     positionGuides();
 
@@ -881,9 +1070,12 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
     // A cancelled drag only removes the guide if the drag is what created it.
     // Cancelling a move of an existing guide puts it back where it started.
-    if (droppedOnRuler || (cancelled && current.fromRuler)) {
-      if (selectedId === current.id) selectedId = null;
-      commitGuides(guides.filter((guide) => guide.id !== current.id));
+    const uncommittedDuplicate = current.duplicated && !current.moved;
+    if (droppedOnRuler || uncommittedDuplicate || (cancelled && current.createdDuringDrag)) {
+      selectedIds.delete(current.id);
+      const next = guides.filter((guide) => guide.id !== current.id);
+      recordGuideHistory(current.historySnapshot, next);
+      commitGuides(next);
       return;
     }
 
@@ -896,10 +1088,18 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       return;
     }
 
+    recordGuideHistory(current.historySnapshot, guides);
     commitGuides(guides.slice());
   }
 
-  function beginDrag(event: PointerEvent, guide: Guide, fromRuler: boolean, target: Element) {
+  function beginDrag(
+    event: PointerEvent,
+    guide: Guide,
+    createdDuringDrag: boolean,
+    target: Element,
+    duplicated = false,
+    historySnapshot = cloneGuides(guides),
+  ) {
     if (guide.locked) return;
     event.preventDefault();
     try {
@@ -911,7 +1111,11 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     drag = {
       id: guide.id,
       axis: guide.axis,
-      fromRuler,
+      createdDuringDrag,
+      duplicated,
+      startPointerPosition: pointerPosition(event, guide.axis),
+      moved: false,
+      historySnapshot,
       originPosition: guide.position,
       pointerId: event.pointerId,
       captureTarget: target,
@@ -920,46 +1124,142 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     updateDrag(event);
   }
 
-  function select(id: string | null) {
-    if (selectedId === id) return;
-    selectedId = id;
+  function selectOnly(id: string | null) {
+    finishNudgeSequence();
+    if (id === null) selectedIds.clear();
+    else selectedIds = new Set([id]);
+    renderGuides();
+  }
+
+  function toggleSelected(id: string) {
+    finishNudgeSequence();
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedIds = next;
     renderGuides();
   }
 
   function deleteSelected() {
-    const guide = guides.find((item) => item.id === selectedId);
-    if (!guide || guide.locked) return false;
-    selectedId = null;
-    commitGuides(guides.filter((item) => item.id !== guide.id));
+    const deletable = new Set(
+      guides.filter((guide) => selectedIds.has(guide.id) && !guide.locked).map((guide) => guide.id),
+    );
+    if (deletable.size === 0) return false;
+    const previous = cloneGuides(guides);
+    selectedIds = new Set([...selectedIds].filter((id) => !deletable.has(id)));
+    const next = guides.filter((guide) => !deletable.has(guide.id));
+    recordGuideHistory(previous, next);
+    commitGuides(next);
     return true;
+  }
+
+  function nudgeSelected(event: KeyboardEvent) {
+    const direction = {
+      ArrowLeft: { axis: "x" as const, delta: -1 },
+      ArrowRight: { axis: "x" as const, delta: 1 },
+      ArrowUp: { axis: "y" as const, delta: -1 },
+      ArrowDown: { axis: "y" as const, delta: 1 },
+    }[event.key];
+    if (!direction) return false;
+
+    const affectedIds = guides
+      .filter(
+        (guide) => selectedIds.has(guide.id) && !guide.locked && guide.axis === direction.axis,
+      )
+      .map((guide) => guide.id)
+      .sort();
+    if (affectedIds.length === 0) return false;
+
+    const sequenceKey = `${direction.axis}:${affectedIds.join(",")}`;
+    if (nudgeSequence?.key !== sequenceKey) {
+      finishNudgeSequence();
+      guideHistory.push(cloneGuides(guides));
+      if (guideHistory.length > 50) guideHistory.shift();
+    }
+    if (nudgeSequence) clearTimeout(nudgeSequence.timeout);
+    nudgeSequence = {
+      key: sequenceKey,
+      timeout: setTimeout(() => {
+        nudgeSequence = null;
+      }, 400),
+    };
+
+    const amount = direction.delta * (event.shiftKey ? 10 : 1);
+    const affected = new Set(affectedIds);
+    commitGuides(
+      guides.map((guide) =>
+        affected.has(guide.id)
+          ? { ...guide, position: Math.round((guide.position + amount) * 100) / 100 }
+          : guide,
+      ),
+    );
+    return true;
+  }
+
+  function clearGuidesByAxis(axis: GuideAxis) {
+    const previous = cloneGuides(guides);
+    const next = guides.filter((guide) => guide.axis !== axis);
+    if (guidesMatch(previous, next)) return false;
+    const nextIds = new Set(next.map((guide) => guide.id));
+    selectedIds = new Set([...selectedIds].filter((id) => nextIds.has(id)));
+    recordGuideHistory(previous, next);
+    commitGuides(next);
+    return true;
+  }
+
+  function closeClearMenu() {
+    clearMenuOpen = false;
+    renderPanel();
   }
 
   function onGuidePointerDown(event: PointerEvent, id: string) {
     if (event.button !== 0) return;
     const guide = guides.find((item) => item.id === id);
     if (!guide) return;
-    // Selecting a locked guide is fine — it just can't be moved or deleted.
-    select(id);
+    if (event.shiftKey) {
+      event.preventDefault();
+      toggleSelected(id);
+      return;
+    }
+    // Selecting a locked guide is fine — it just can't be moved or duplicated.
+    selectOnly(id);
     if (guide.locked) return;
     const target = event.currentTarget as Element;
+    if (event.altKey) {
+      const historySnapshot = cloneGuides(guides);
+      const duplicate = { ...guide, id: createGuideId() };
+      guides = [...guides, duplicate];
+      selectedIds = new Set([duplicate.id]);
+      renderGuides();
+      beginDrag(event, duplicate, true, target, true, historySnapshot);
+      return;
+    }
     beginDrag(event, guide, false, target);
   }
 
   function onRulerPointerDown(event: PointerEvent, axis: GuideAxis) {
     if (event.button !== 0) return;
+    finishNudgeSequence();
+    const historySnapshot = cloneGuides(guides);
     const guide: Guide = {
       id: createGuideId(),
       axis,
       position: pointerPosition(event, axis),
     };
     guides = [...guides, guide];
-    selectedId = guide.id;
+    selectedIds = new Set([guide.id]);
     renderGuides();
-    beginDrag(event, guide, true, event.currentTarget as Element);
+    beginDrag(event, guide, true, event.currentTarget as Element, false, historySnapshot);
   }
 
   // -------------------------------------------------------------- events ---
   const onPointerMove = (event: PointerEvent) => {
+    if (marquee && event.pointerId === marquee.pointerId) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      updateMarquee(event);
+      return;
+    }
     if (panelDrag && event.pointerId === panelDrag.pointerId) {
       const rect = panel.getBoundingClientRect();
       const maxX = Math.max(8, getViewportWidth() - rect.width - 8);
@@ -983,6 +1283,13 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   };
 
   const onPointerUp = (event: PointerEvent) => {
+    if (marquee && event.pointerId === marquee.pointerId) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      updateMarquee(event);
+      endMarquee();
+      return;
+    }
     if (panelDrag && event.pointerId === panelDrag.pointerId) {
       panelDrag = null;
       safeWrite(
@@ -996,6 +1303,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   };
 
   const onPointerCancel = (event: PointerEvent) => {
+    if (marquee && event.pointerId === marquee.pointerId) {
+      endMarquee();
+      return;
+    }
     if (panelDrag && event.pointerId === panelDrag.pointerId) {
       panelDrag = null;
       return;
@@ -1007,9 +1318,17 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   const onScroll = () => scheduleSync();
 
   const onKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape" && marquee) {
+      event.preventDefault();
+      endMarquee();
+      selectOnly(null);
+      return;
+    }
     // Escape aborts an in-flight drag before any other handling.
     if (event.key === "Escape" && drag) {
-      const synthetic = new PointerEvent("pointerup", { pointerId: drag.pointerId });
+      const synthetic = new PointerEvent("pointerup", {
+        pointerId: drag.pointerId,
+      });
       endDrag(synthetic, true);
       return;
     }
@@ -1018,12 +1337,24 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     if (event.isComposing || event.keyCode === 229) return;
     if (isEditableTarget(event.target)) return;
 
+    if (event.key === "Escape" && clearMenuOpen) {
+      event.preventDefault();
+      closeClearMenu();
+      clearControl.focus();
+      return;
+    }
+
     /*
      * Deleting and deselecting act on a guide the user has directly selected, so
      * they stay available even when the global `shortcut` handling is disabled —
      * they can't fire unless a guide is selected in the first place.
      */
-    if (selectedId !== null) {
+    if (selectedIds.size > 0) {
+      if (nudgeSelected(event)) {
+        event.preventDefault();
+        return;
+      }
+
       if (event.key === "Backspace" || event.key === "Delete") {
         // Backspace would otherwise navigate back in some browsers.
         event.preventDefault();
@@ -1033,7 +1364,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
       if (event.key === "Escape") {
         event.preventDefault();
-        select(null);
+        selectOnly(null);
         return;
       }
     }
@@ -1056,9 +1387,16 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     const modKey = isMac ? event.metaKey : event.ctrlKey;
     const key = event.key.toLowerCase();
 
+    if (event.shiftKey && !modKey && !event.altKey && key === "z") {
+      const undone = undoGuideChange();
+      if (undone) event.preventDefault();
+      return;
+    }
+
     if (modKey && event.shiftKey && !event.altKey && key === "g") {
       event.preventDefault();
       panelOpen = !panelOpen;
+      if (!panelOpen) clearMenuOpen = false;
       safeWrite(DEFAULT_PANEL_STORAGE_KEY, String(panelOpen));
       scheduleRender();
       return;
@@ -1079,8 +1417,11 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
 
     if (event.shiftKey && !modKey && !event.altKey && key === "l") {
       event.preventDefault();
+      const previous = cloneGuides(guides);
       const anyUnlocked = guides.some((guide) => !guide.locked);
-      commitGuides(guides.map((guide) => ({ ...guide, locked: anyUnlocked })));
+      const next = guides.map((guide) => ({ ...guide, locked: anyUnlocked }));
+      recordGuideHistory(previous, next);
+      commitGuides(next);
       return;
     }
 
@@ -1095,6 +1436,7 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   rulerCorner.addEventListener("click", () => clearGuides());
   panelClose.addEventListener("click", () => {
     panelOpen = false;
+    clearMenuOpen = false;
     safeWrite(DEFAULT_PANEL_STORAGE_KEY, "false");
     scheduleRender();
   });
@@ -1119,8 +1461,11 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   });
   inspectorControl.addEventListener("click", () => setInspector(!inspectorOn));
   lockControl.addEventListener("click", () => {
+    const previous = cloneGuides(guides);
     const anyUnlocked = guides.some((guide) => !guide.locked);
-    commitGuides(guides.map((guide) => ({ ...guide, locked: anyUnlocked })));
+    const next = guides.map((guide) => ({ ...guide, locked: anyUnlocked }));
+    recordGuideHistory(previous, next);
+    commitGuides(next);
     renderPanel();
   });
   snapElementsControl.addEventListener("click", () => {
@@ -1136,8 +1481,24 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     renderPanel();
   });
   clearControl.addEventListener("click", () => {
-    clearGuides();
+    clearMenuOpen = !clearMenuOpen;
     renderPanel();
+  });
+  clearSelectedControl.addEventListener("click", () => {
+    deleteSelected();
+    closeClearMenu();
+  });
+  clearHorizontalControl.addEventListener("click", () => {
+    clearGuidesByAxis("y");
+    closeClearMenu();
+  });
+  clearVerticalControl.addEventListener("click", () => {
+    clearGuidesByAxis("x");
+    closeClearMenu();
+  });
+  clearAllControl.addEventListener("click", () => {
+    clearGuides();
+    closeClearMenu();
   });
 
   const onWindowPointerDown = (event: PointerEvent) => {
@@ -1152,15 +1513,27 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       event.stopImmediatePropagation();
       return;
     }
-    if (selectedId === null) return;
     // Shadow-DOM events retarget to the host, so a different target means the
-    // click landed on the page rather than on a guide.
+    // click landed on the page rather than on GuideFrame UI.
     if (event.target === host) return;
-    select(null);
+    if (event.button === 0 && event.shiftKey && guidesOn && (isVisible() || rulersVisible())) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      beginMarquee(event);
+      return;
+    }
+    if (selectedIds.size > 0) selectOnly(null);
   };
 
   const blockPageInteraction = (event: Event) => {
-    if (!inspectorOn || event.target === host) return;
+    if (event.target === host) return;
+    if (event.type === "click" && suppressNextPageClick) {
+      suppressNextPageClick = false;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      return;
+    }
+    if (!inspectorOn) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   };
@@ -1170,18 +1543,19 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   window.addEventListener("click", blockPageInteraction, true);
   window.addEventListener("dblclick", blockPageInteraction, true);
   window.addEventListener("contextmenu", blockPageInteraction, true);
-  window.addEventListener("pointermove", onPointerMove, { passive: false });
-  window.addEventListener("pointerup", onPointerUp);
-  window.addEventListener("pointercancel", onPointerCancel);
+  window.addEventListener("pointermove", onPointerMove, {
+    capture: true,
+    passive: false,
+  });
+  window.addEventListener("pointerup", onPointerUp, true);
+  window.addEventListener("pointercancel", onPointerCancel, true);
   window.addEventListener("scroll", onScroll, { passive: true, capture: true });
   window.addEventListener("keydown", onKeyDown);
 
   // A ResizeObserver on the root element catches viewport changes *and*
   // scrollbar appear/disappear, which a bare `resize` listener misses.
   const resizeObserver =
-    typeof ResizeObserver !== "undefined"
-      ? new ResizeObserver(() => scheduleRender())
-      : null;
+    typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => scheduleRender()) : null;
   resizeObserver?.observe(document.documentElement);
   if (!resizeObserver) window.addEventListener("resize", scheduleRender);
 
@@ -1203,7 +1577,9 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
   }
 
   function clearGuides() {
-    selectedId = null;
+    const previous = cloneGuides(guides);
+    selectedIds.clear();
+    recordGuideHistory(previous, []);
     commitGuides([]);
   }
 
@@ -1214,23 +1590,31 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
       if (destroyed) return;
       options = { ...next };
       if (next.panel === false) panelOpen = false;
-      if (next.guides !== undefined) guides = next.guides;
+      if (next.guides !== undefined) {
+        finishNudgeSequence();
+        guides = next.guides;
+        guideHistory.length = 0;
+      }
       scheduleRender();
     },
     destroy() {
       if (destroyed) return;
       destroyed = true;
+      finishNudgeSequence();
       if (inspectorOn) document.documentElement.style.cursor = previousCursor;
+      if (marquee) restoreSelection();
       if (frame) cancelAnimationFrame(frame);
       window.removeEventListener("pointerdown", onWindowPointerDown, true);
       window.removeEventListener("pointerup", blockPageInteraction, true);
       window.removeEventListener("click", blockPageInteraction, true);
       window.removeEventListener("dblclick", blockPageInteraction, true);
       window.removeEventListener("contextmenu", blockPageInteraction, true);
-      window.removeEventListener("pointermove", onPointerMove);
-      window.removeEventListener("pointerup", onPointerUp);
-      window.removeEventListener("pointercancel", onPointerCancel);
-      window.removeEventListener("scroll", onScroll, { capture: true } as EventListenerOptions);
+      window.removeEventListener("pointermove", onPointerMove, true);
+      window.removeEventListener("pointerup", onPointerUp, true);
+      window.removeEventListener("pointercancel", onPointerCancel, true);
+      window.removeEventListener("scroll", onScroll, {
+        capture: true,
+      } as EventListenerOptions);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", scheduleRender);
       resizeObserver?.disconnect();
@@ -1242,7 +1626,10 @@ export function createGuideframe(initialOptions: GuideframeOptions = {}): Guidef
     isVisible,
     getGuides: () => guides.slice(),
     setGuides: (next: Guide[]) => {
-      if (!next.some((guide) => guide.id === selectedId)) selectedId = null;
+      finishNudgeSequence();
+      guideHistory.length = 0;
+      const nextIds = new Set(next.map((guide) => guide.id));
+      selectedIds = new Set([...selectedIds].filter((id) => nextIds.has(id)));
       commitGuides(next);
     },
     clearGuides,

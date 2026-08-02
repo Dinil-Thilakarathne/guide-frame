@@ -243,6 +243,38 @@ export const OVERLAY_STYLES = `
   opacity: 1;
 }
 
+/* ------------------------------------------------------ guide selection -- */
+
+.gf-selection-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.gf-selection-box {
+  position: absolute;
+  border: 1px solid rgba(0, 138, 255, 0.9);
+  background: rgba(0, 138, 255, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.gf-selection-status {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  z-index: 3;
+  padding: 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(24, 24, 27, 0.94);
+  color: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  font-size: 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
 /* --------------------------------------------------------------- readout -- */
 
 .gf-readout {
@@ -447,6 +479,9 @@ export const OVERLAY_STYLES = `
 }
 
 .gf-panel-clear {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   width: 100%;
   min-height: 32px;
   margin-top: 5px;
@@ -461,6 +496,42 @@ export const OVERLAY_STYLES = `
 .gf-panel-clear:hover:not(:disabled) { background: rgba(255, 80, 104, 0.09); }
 .gf-panel-clear:disabled { cursor: default; opacity: 0.35; }
 
+.gf-panel-clear-chevron {
+  color: rgba(255, 120, 137, 0.58);
+  font-size: 16px;
+  transition: transform 140ms ease;
+}
+
+.gf-panel-clear-open .gf-panel-clear-chevron { transform: rotate(90deg); }
+
+.gf-panel-clear-menu {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 4px;
+  padding: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.gf-panel-clear-action {
+  appearance: none;
+  width: 100%;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.72);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.gf-panel-clear-action:hover:not(:disabled) { background: rgba(255, 255, 255, 0.06); }
+.gf-panel-clear-action:disabled { cursor: default; opacity: 0.3; }
+.gf-panel-clear-action-danger { color: rgba(255, 120, 137, 0.9); }
+
 .gf-panel button:focus-visible {
   outline: 2px solid var(--gf-color, rgb(255 0 84));
   outline-offset: -2px;
@@ -468,7 +539,8 @@ export const OVERLAY_STYLES = `
 
 @media (prefers-reduced-motion: reduce) {
   .gf-panel-toggle,
-  .gf-panel-toggle::after { transition: none; }
+  .gf-panel-toggle::after,
+  .gf-panel-clear-chevron { transition: none; }
 }
 
 .gf-hidden { display: none !important; }

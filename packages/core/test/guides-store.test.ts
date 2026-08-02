@@ -12,9 +12,7 @@ describe("guide persistence", () => {
   it("round-trips guides", () => {
     const guides = [{ id: "a", axis: "x" as const, position: 120 }];
     writeGuides(KEY, guides);
-    expect(readGuides(KEY)).toEqual([
-      { id: "a", axis: "x", position: 120, locked: false },
-    ]);
+    expect(readGuides(KEY)).toEqual([{ id: "a", axis: "x", position: 120, locked: false }]);
   });
 
   it("namespaces guides per route", () => {

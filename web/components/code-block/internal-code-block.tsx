@@ -6,10 +6,8 @@ import {
   CodeBlockPre,
 } from "./code-block";
 
-interface InternalCodeBlockProps extends Omit<
-  React.ComponentProps<typeof CodeBlock>,
-  "children"
-> {
+interface InternalCodeBlockProps
+  extends Omit<React.ComponentProps<typeof CodeBlock>, "children"> {
   filename?: string;
   copyEventName?: string;
   copyEventProperties?: Record<string, string | number | boolean | null>;

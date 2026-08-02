@@ -40,13 +40,29 @@ directly from a Server Component file.
 Drag off a ruler to place a guide and drag a guide to move it. To remove one,
 either click it and press <kbd>Backspace</kbd>/<kbd>Delete</kbd>, or drag it back
 onto the ruler. Guides snap to the edges of the DOM element under the pointer, to
-your column boundaries, and to other guides — hold <kbd>Alt</kbd> to place one
-freely.
+your column boundaries, and to other guides — hold
+<kbd>⌘</kbd>/<kbd>Ctrl</kbd> to place one freely.
+
+<kbd>Alt</kbd>/<kbd>Option</kbd>-drag an existing guide to duplicate it and move
+the copy while leaving the original in place.
+
+Hold <kbd>Shift</kbd> and drag across the page to select multiple unlocked
+guides, then press <kbd>Backspace</kbd>/<kbd>Delete</kbd> to remove them together.
+<kbd>Shift</kbd>-click adds or removes one guide from the current selection.
+
+Use an arrow key to nudge selected unlocked guides by 1px, or
+<kbd>Shift</kbd>+Arrow to move them by 10px. Repeated nudges form one undoable
+sequence and locked guides remain stationary.
+
+The floating panel includes a collapsed **Clear…** menu for removing selected,
+horizontal, vertical, or all guides. Use <kbd>Shift</kbd>+<kbd>Z</kbd> to restore
+the latest clear action.
 
 | Shortcut | Action |
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>G</kbd> | Toggle the overlay |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Toggle the floating control panel |
+| <kbd>Shift</kbd> + <kbd>Z</kbd> | Undo the latest completed guide change |
 | <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle the rulers |
 | <kbd>Shift</kbd> + <kbd>L</kbd> | Lock/unlock every guide |
 | <kbd>Shift</kbd> + <kbd>M</kbd> | Toggle the geometry inspector |

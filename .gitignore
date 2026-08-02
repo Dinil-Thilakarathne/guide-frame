@@ -3,3 +3,12 @@ dist
 coverage
 .vite
 .DS_Store
+*.tgz
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.next
+.turbo
+.code-review-graph
+.claude/settings.local.json

@@ -70,16 +70,31 @@ interaction model matches Figma:
 | Drag off a ruler | Creates a guide and starts dragging it |
 | Click a guide | Selects it |
 | Drag a guide | Moves it |
+| <kbd>Shift</kbd>-click a guide | Adds or removes it from the selection |
+| <kbd>Shift</kbd>-drag across the page | Selects every intersecting unlocked guide |
+| Arrow key | Nudges selected unlocked guides on that axis by 1px |
+| <kbd>Shift</kbd> + Arrow key | Nudges selected unlocked guides on that axis by 10px |
 | <kbd>Backspace</kbd> / <kbd>Delete</kbd> | Deletes the selected guide |
 | Drop a guide on a ruler | Deletes it |
-| Hold <kbd>Alt</kbd> while dragging | Ignores snapping |
+| <kbd>Alt</kbd>/<kbd>Option</kbd>-drag a guide | Duplicates it and drags the copy |
+| Hold <kbd>⌘</kbd>/<kbd>Ctrl</kbd> while dragging | Ignores snapping |
 | <kbd>Esc</kbd> while dragging | Cancels the drag, restoring the guide's position |
 | <kbd>Esc</kbd> with a guide selected | Deselects it |
 | Click the ruler corner | Clears every guide on the route |
 
-A selected guide is highlighted and shows a small handle. Selection is cleared by
-pressing <kbd>Esc</kbd> or clicking anywhere off the guide. Locked guides can be
-selected but not moved or deleted.
+The floating panel’s compact **Clear…** menu can remove selected guides,
+horizontal guides, vertical guides, or all guides. Every clear action can be
+restored with <kbd>Shift</kbd>+<kbd>Z</kbd>. Locked guides remain protected by
+**Selected guides**; the explicit axis and all-guide actions clear their full
+requested scope.
+
+Repeated arrow presses within the same nudge sequence share one undo step.
+Horizontal arrow keys move vertical guides, vertical arrow keys move horizontal
+guides, and locked guides remain stationary.
+
+Selected guides are highlighted and show small handles. Selection is cleared by
+pressing <kbd>Esc</kbd> or clicking anywhere off the guides. Locked guides can be
+selected directly, but cannot be marquee-selected, moved or deleted.
 
 <kbd>Backspace</kbd>/<kbd>Delete</kbd> and <kbd>Esc</kbd> keep working even with
 `shortcut: false`, because they only act on a guide you have directly selected.
@@ -90,6 +105,7 @@ selected but not moved or deleted.
 | --- | --- |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>G</kbd> | Toggle the overlay |
 | <kbd>⌘</kbd>/<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>G</kbd> | Toggle the floating control panel |
+| <kbd>Shift</kbd> + <kbd>Z</kbd> | Undo the latest completed guide change |
 | <kbd>Shift</kbd> + <kbd>R</kbd> | Toggle the rulers |
 | <kbd>Shift</kbd> + <kbd>L</kbd> | Lock/unlock every guide |
 | <kbd>Shift</kbd> + <kbd>M</kbd> | Toggle the geometry inspector |

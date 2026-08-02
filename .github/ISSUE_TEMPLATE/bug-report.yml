@@ -1,0 +1,76 @@
+name: Bug report
+description: Report a reproducible GuideFrame defect
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: checkboxes
+    attributes:
+      label: Existing issue
+      options:
+        - label: I searched existing issues and did not find this problem.
+          required: true
+  - type: input
+    id: package-version
+    attributes:
+      label: Package and version
+      placeholder: "@guideframe/react 0.2.0-beta.5"
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Framework, browser, operating system, Node.js, and package manager versions
+      placeholder: "React 19, Chrome 140, macOS 15, Node 22, npm 11"
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Overlay scope
+      options:
+        - Page-level overlay
+        - Scoped container overlay
+        - Both
+        - Not sure
+    validations:
+      required: true
+  - type: textarea
+    id: configuration
+    attributes:
+      label: GuideFrame configuration
+      description: Include the relevant component props or createGuideframe options.
+      render: tsx
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction and steps
+      description: Link a minimal repository or provide precise reproduction steps.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshots or recordings
+      description: Add visual evidence when it helps explain pointer, layout, or motion behavior.
+  - type: checkboxes
+    attributes:
+      label: Security
+      options:
+        - label: This report does not contain a security vulnerability or private data.
+          required: true
+

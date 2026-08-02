@@ -8,6 +8,24 @@ html {
   background: var(--color-background);
 }
 
+@media (prefers-reduced-motion: reduce) {
+  html {
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation-duration: 0.01ms;
+    }
+  }
+
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto;
+    transition-duration: 0.01ms;
+    animation-duration: 0.01ms;
+    animation-iteration-count: 1;
+  }
+}
+
 :root {
   --background: oklch(0.977 0.0012 240.3);
   --foreground-main: oklch(0.2041 0.0028 240.48);

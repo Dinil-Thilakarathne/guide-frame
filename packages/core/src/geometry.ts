@@ -43,8 +43,7 @@ export function computeGridGeometry(options: {
   const left = Math.max(0, (viewportWidth - width) / 2);
   const contentWidth = Math.max(0, width - margin * 2);
   const totalGutter = gutter * Math.max(0, columnCount - 1);
-  const columnWidth =
-    columnCount > 0 ? Math.max(0, (contentWidth - totalGutter) / columnCount) : 0;
+  const columnWidth = columnCount > 0 ? Math.max(0, (contentWidth - totalGutter) / columnCount) : 0;
 
   return { left, width, columnCount, columnWidth, gutter, margin };
 }

@@ -14,9 +14,7 @@ export function useGuideframe(options: GuideframeOptions = {}) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
-  const [visible, setVisibleState] = useState(
-    options.visible ?? options.defaultVisible ?? true,
-  );
+  const [visible, setVisibleState] = useState(options.visible ?? options.defaultVisible ?? true);
   const [guides, setGuidesState] = useState<Guide[]>(options.defaultGuides ?? []);
 
   useEffect(() => {

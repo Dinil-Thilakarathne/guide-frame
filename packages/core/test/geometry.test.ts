@@ -1,10 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  columnEdges,
-  computeGridGeometry,
-  pickClosest,
-  resolveMaxWidth,
-} from "../src/geometry";
+import { columnEdges, computeGridGeometry, pickClosest, resolveMaxWidth } from "../src/geometry";
 
 describe("resolveMaxWidth", () => {
   it("clamps a numeric max width to the viewport", () => {
@@ -119,9 +114,11 @@ describe("pickClosest", () => {
   });
 
   it("ignores non-finite candidates", () => {
-    const result = pickClosest(10, [
-      { position: Number.NaN, kind: "element" as const, label: "x", priority: 0 },
-    ], 6);
+    const result = pickClosest(
+      10,
+      [{ position: Number.NaN, kind: "element" as const, label: "x", priority: 0 }],
+      6,
+    );
     expect(result.kind).toBe("none");
   });
 });

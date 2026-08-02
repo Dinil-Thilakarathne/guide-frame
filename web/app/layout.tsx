@@ -3,8 +3,8 @@ import { Geist } from "next/font/google";
 import { fontSatoshi, HelveticaNeue } from "@/fonts";
 import { getAbsoluteUrl, getSiteUrl } from "@/lib/site";
 import "./globals.css";
-import { PostHogProvider } from "./providers";
 import GuideframeClient from "../components/common/guideframe-client";
+import { PostHogProvider } from "./providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
