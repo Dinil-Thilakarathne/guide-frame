@@ -5,7 +5,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     {
       url: getAbsoluteUrl("/").toString(),
-      lastModified: new Date(),
       changeFrequency: "weekly",
       priority: 1,
     },

@@ -4,34 +4,12 @@ import {
   CodeBlockHeader,
   CodeBlockPre,
 } from "@/components/code-block/code-block";
-import { InternalCodeBlock } from "@/components/code-block/internal-code-block";
+import GettingStartedTabs from "@/components/getting-started-tabs";
+import InteractionReference from "@/components/interaction-reference";
 import TrackableOutboundLink from "@/components/trackable-outbound-link";
 import TryGuideframeButton from "@/components/try-guideframe-button";
 
 const installCommand = "npm install @guideframe/react";
-const usageCommand = `import { GuideframeGrid } from "@guideframe/react";
-
-export function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="en">
-      <body>
-        <GuideframeGrid rulers />
-        {children}
-      </body>
-    </html>
-  );
-}`;
-
-const coreUsageCommand = `import { createGuideframe } from "@guideframe/core";
-
-const guideframe = createGuideframe({
-  columns: { desktop: 12, tablet: 8, mobile: 4 },
-  rulers: true,
-});
-
-// on teardown
-guideframe.destroy();`;
-
 const outcomes = [
   {
     title: "Align",
@@ -47,31 +25,6 @@ const outcomes = [
     title: "Compare",
     description:
       "Pin one component and compare it with another using exact DOM geometry.",
-  },
-];
-
-const usageSteps = [
-  {
-    title: "Install",
-    description: "Add the package to your app.",
-    command: installCommand,
-    commandName: "install",
-    language: "bash",
-  },
-  {
-    title: "Use",
-    description: "Render the overlay once near the root of your app.",
-    command: usageCommand,
-    commandName: "use",
-    language: "tsx",
-  },
-  {
-    title: "Any framework",
-    description:
-      "Svelte, Vue, Astro, or plain JavaScript can drive the same engine directly through @guideframe/core.",
-    command: coreUsageCommand,
-    commandName: "core",
-    language: "ts",
   },
 ];
 
@@ -93,55 +46,6 @@ const packagePoints = [
   "Keeps the interface lightweight and unobtrusive so the grid stays useful instead of distracting.",
   "Renders inside a shadow root, so your CSS cannot affect the overlay and the overlay cannot affect your layout.",
   "Client-only by design, with production rendering disabled by default in supported build environments.",
-];
-
-const shortcutItems = [
-  {
-    action: "Toggle the overlay",
-    shortcut: "Cmd / Ctrl + G",
-  },
-  {
-    action: "Open the control panel",
-    shortcut: "Cmd / Ctrl + Shift + G",
-  },
-  {
-    action: "Toggle the rulers",
-    shortcut: "Shift + R",
-  },
-  {
-    action: "Toggle geometry inspection",
-    shortcut: "Shift + M",
-  },
-  {
-    action: "Lock every guide",
-    shortcut: "Shift + L",
-  },
-  {
-    action: "Undo the last guide change",
-    shortcut: "Shift + Z",
-  },
-  {
-    action: "Nudge selected guides",
-    shortcut: "Arrow / Shift + Arrow",
-  },
-];
-
-const guideActions = [
-  "Drag off a ruler to place a guide, and drag a guide to move it.",
-  "Alt or Option-drag an existing guide to duplicate it.",
-  "Command or Ctrl-drag to temporarily bypass snapping.",
-  "Shift-click guides or Shift-drag across the page to select multiple guides.",
-  "Use Arrow keys to nudge selected guides by 1px, or Shift + Arrow for 10px.",
-  "Delete a selection together, or use the Clear… menu for selected, horizontal, vertical, or all guides.",
-];
-
-const inspectorActions = [
-  "Open the floating control panel and enable Geometry inspector, or press Shift + M.",
-  "Page interactions pause, so inspected buttons and links cannot activate.",
-  "Hover a component to read its rendered width, height, and padding.",
-  "Click the component to pin its geometry.",
-  "Hover another component to compare horizontal and vertical gaps plus alignment deltas.",
-  "Press Esc to clear the pinned component, then again to exit inspection.",
 ];
 
 function SectionHeading({ children }: { children: React.ReactNode }) {
@@ -271,30 +175,7 @@ export default function Page() {
 
       <section className="flex flex-col gap-4">
         <SectionHeading>Get started</SectionHeading>
-        <div className="grid grid-cols-1 gap-6">
-          {usageSteps.map((step) => (
-            <article key={step.title} className="flex flex-col gap-2">
-              <div className="flex flex-col gap-1">
-                <h3 className="text-foreground-main font-medium">
-                  {step.title}
-                </h3>
-                <p>{step.description}</p>
-              </div>
-              <InternalCodeBlock
-                code={step.command}
-                language={step.language}
-                filename={step.title.toLowerCase()}
-                copyEventName="landing_usage_command_copied"
-                copyEventProperties={{
-                  page_name: "guideframe landing page",
-                  command_name: step.commandName,
-                  section: "usage",
-                }}
-                className="my-0"
-              />
-            </article>
-          ))}
-        </div>
+        <GettingStartedTabs />
       </section>
 
       <section className="flex flex-col gap-4">
@@ -315,47 +196,7 @@ export default function Page() {
 
       <section className="flex flex-col gap-4">
         <SectionHeading>Interaction reference</SectionHeading>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {shortcutItems.map((item) => (
-            <div
-              key={item.action}
-              className="border-border bg-background rounded-2xl border p-4"
-            >
-              <p className="text-foreground-main font-medium">{item.action}</p>
-              <p className="text-foreground-main mt-1 font-mono text-lg tracking-[-0.03em]">
-                {item.shortcut}
-              </p>
-            </div>
-          ))}
-        </div>
-        <ul className="mt-2 grid grid-cols-1 gap-2">
-          {guideActions.map((action) => (
-            <li key={action}>
-              <p className="leading-7">{action}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="max-w-xl text-balance leading-7">
-          Guides snap to the box edges of whatever element is under your
-          pointer, to your column boundaries, and to other guides — and the
-          readout names what it locked onto. They persist per route, so the
-          guides you draw on one page stay there.
-        </p>
-      </section>
-
-      <section className="flex flex-col gap-4">
-        <SectionHeading>Inspect component geometry</SectionHeading>
-        <ul className="grid grid-cols-1 gap-2">
-          {inspectorActions.map((action) => (
-            <li key={action}>
-              <p className="leading-7">{action}</p>
-            </li>
-          ))}
-        </ul>
-        <p className="max-w-xl text-balance leading-7">
-          Pin one rendered element and compare it with another to turn a spacing
-          or alignment concern into exact browser measurements.
-        </p>
+        <InteractionReference />
       </section>
 
       <section className="flex flex-col gap-4">

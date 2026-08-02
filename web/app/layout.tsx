@@ -14,16 +14,18 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   metadataBase: getSiteUrl(),
   title: {
-    default: "GuideFrame",
+    default: "GuideFrame — Browser Layout Grids, Rulers & Guides",
     template: "%s | GuideFrame",
   },
   description:
-    "Figma-style layout grids, rulers, and draggable guides inside the browser.",
+    "Add Figma-style layout grids, rulers, snapping guides, and DOM geometry inspection to React or any browser-based app.",
   applicationName: "GuideFrame",
   keywords: [
     "GuideFrame",
     "layout grid",
     "rulers and guides",
+    "browser design tools",
+    "DOM geometry inspector",
     "design engineering",
     "React overlay",
     "Next.js",
@@ -36,27 +38,28 @@ export const metadata: Metadata = {
   alternates: {
     canonical: "/",
   },
+  manifest: "/manifest.webmanifest",
   openGraph: {
     type: "website",
     url: "/",
-    title: "GuideFrame",
+    title: "GuideFrame — Browser Layout Grids, Rulers & Guides",
     siteName: "GuideFrame",
     description:
-      "Add a browser-visible layout grid, rulers, and snapping guides to your app for spacing and alignment checks.",
+      "Inspect real interface spacing with browser-native layout grids, rulers, snapping guides, and DOM geometry comparison.",
     images: [
       {
         url: getAbsoluteUrl("/opengraph-image"),
         width: 1200,
         height: 630,
-        alt: "GuideFrame layout grid overlay",
+        alt: "GuideFrame browser overlay with rulers, layout columns, and cyan guides",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "GuideFrame",
+    title: "GuideFrame — Browser Layout Grids, Rulers & Guides",
     description:
-      "Figma-style layout grids, rulers, and draggable guides inside the browser.",
+      "Inspect real interface spacing with layout grids, rulers, snapping guides, and DOM geometry comparison.",
     images: [getAbsoluteUrl("/twitter-image")],
   },
   robots: {
@@ -70,11 +73,6 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  icons: {
-    icon: "/favicon.ico",
-    shortcut: "/favicon.ico",
-    apple: "/favicon.ico",
-  },
   category: "developer tools",
 };
 
@@ -83,11 +81,61 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const siteUrl = getSiteUrl().toString();
+  const structuredData = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        "@id": `${siteUrl}#website`,
+        url: siteUrl,
+        name: "GuideFrame",
+        description:
+          "Figma-style layout grids, rulers, snapping guides, and DOM geometry inspection for browser-based apps.",
+      },
+      {
+        "@type": "SoftwareApplication",
+        "@id": `${siteUrl}#software`,
+        name: "GuideFrame",
+        url: siteUrl,
+        applicationCategory: "DeveloperApplication",
+        applicationSubCategory: "Design engineering tool",
+        operatingSystem: "Any operating system with a modern browser",
+        description:
+          "An open-source browser overlay for layout grids, rulers, snapping guides, and rendered DOM geometry inspection.",
+        license: "https://opensource.org/license/mit",
+        codeRepository: "https://github.com/Dinil-Thilakarathne/guide-frame",
+        downloadUrl: "https://www.npmjs.com/package/@guideframe/react",
+        author: {
+          "@type": "Person",
+          name: "Dinil Thilakarathne",
+          url: "https://github.com/Dinil-Thilakarathne",
+        },
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      },
+    ],
+  };
+
   return (
     <html
       lang="en"
       className={`${geistSans.variable} ${HelveticaNeue.variable} ${fontSatoshi.variable} antialiased transition-colors duration-300`}
     >
+      <head>
+        <link
+          rel="alternate"
+          type="text/plain"
+          href="/llms.txt"
+          title="GuideFrame documentation for AI agents"
+        />
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </head>
       <body className="">
         <PostHogProvider>
           <GuideframeClient />

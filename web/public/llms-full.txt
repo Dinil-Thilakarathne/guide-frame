@@ -1,0 +1,180 @@
+# GuideFrame: Full Agent Reference
+
+GuideFrame is an open-source design-engineering tool that adds layout grids, rulers, draggable guides, snapping, multi-guide editing, and rendered DOM geometry inspection to browser applications.
+
+Repository: https://github.com/Dinil-Thilakarathne/guide-frame
+License: MIT
+React package: https://www.npmjs.com/package/@guideframe/react
+Core package: https://www.npmjs.com/package/@guideframe/core
+
+## Choose a package
+
+Use `@guideframe/react` for React applications, including Next.js, Remix, and Vite. Use `@guideframe/core` for Svelte, Vue, Astro, plain JavaScript, or a custom framework integration.
+
+## React installation
+
+```bash
+npm install @guideframe/react
+```
+
+```tsx
+import { GuideframeGrid } from "@guideframe/react";
+
+export function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body>
+        <GuideframeGrid rulers />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+`GuideframeGrid` is a Client Component that returns `null`. It mounts the overlay from an effect, so it adds no server-rendered markup and does not participate in the host React layout.
+
+## Framework-agnostic installation
+
+```bash
+npm install @guideframe/core
+```
+
+```ts
+import { createGuideframe } from "@guideframe/core";
+
+const guideframe = createGuideframe({
+  columns: { desktop: 12, tablet: 8, mobile: 4 },
+  rulers: true,
+  snap: { elements: true, columns: true, guides: true, threshold: 6 },
+});
+
+guideframe.destroy();
+```
+
+## Interaction model
+
+- Drag from a ruler to create a guide.
+- Click a guide to select it.
+- Shift-click to add or remove a guide from the selection.
+- Shift-drag across the page to marquee-select intersecting unlocked guides.
+- Alt or Option-drag a guide to duplicate it.
+- Command or Ctrl-drag to bypass snapping temporarily.
+- Arrow keys nudge selected unlocked guides by 1px.
+- Shift plus an Arrow key nudges by 10px.
+- Backspace or Delete removes selected unlocked guides.
+- Dragging a guide onto a ruler deletes it.
+- Escape cancels a drag or clears the current selection.
+- The Clear menu removes selected, horizontal, vertical, or all guides.
+- Shift+Z restores the latest completed clear, drag, duplicate, delete, or nudge sequence.
+- Locked guides remain visible but cannot be moved, duplicated, marquee-selected, or deleted as part of a selected-guide action.
+
+## Global shortcuts
+
+| Shortcut | Action |
+| --- | --- |
+| Command/Ctrl + G | Toggle the overlay |
+| Command/Ctrl + Shift + G | Toggle the floating panel |
+| Shift + Z | Undo the latest completed guide change |
+| Shift + R | Toggle rulers |
+| Shift + L | Lock or unlock all guides |
+| Shift + M | Toggle geometry inspection |
+| Backspace/Delete | Delete selected unlocked guides |
+| Escape | Cancel a drag, clear selection, or step out of inspection |
+
+Shortcuts are ignored while the user is typing in an input, textarea, contenteditable region, or while an IME is composing.
+
+## Snapping
+
+Guides snap to the edges and center of the rendered DOM element under the pointer, layout grid column and gutter boundaries, and other guides. Element targets win ties. The on-screen readout identifies the selected target. Set `snap={false}` to disable snapping, or provide `SnapOptions`.
+
+## Geometry inspection
+
+Enable Geometry inspector from the floating panel or press Shift+M. Hover an element to read its rendered width, height, and padding. Click to pin it, then hover another element to compare horizontal and vertical gaps plus alignment deltas. Escape clears the pinned element first and exits inspection on the next press. Inspection blocks pointer activation of page controls while preserving scrolling and hover measurement.
+
+## Persistence and control
+
+Uncontrolled guides persist in `localStorage` and are namespaced by `location.pathname`. Provide `guides` and `onGuidesChange` to control guide state yourself; controlled guides are not persisted automatically. Visibility can be controlled with `visible` and `onVisibleChange`.
+
+## Container scoping
+
+Pass `container` to scope GuideFrame to a positioned element. A scoped overlay uses absolute positioning and stores guides relative to the container.
+
+```ts
+createGuideframe({
+  container: document.querySelector("#preview"),
+  rulers: true,
+});
+```
+
+## GuideframeOptions
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `columns` | `{ desktop: 12, tablet: 8, mobile: 4 }` | Column count or responsive values |
+| `gutter` | `{ desktop: 24, tablet: 24, mobile: 16 }` | Gutter size in CSS pixels |
+| `margin` | `{ desktop: 24, tablet: 24, mobile: 16 }` | Outer margin in CSS pixels |
+| `maxWidth` | `1280` | Number, percentage, or `"none"` |
+| `breakpoints` | `{ tablet: 768, desktop: 1024 }` | Responsive thresholds |
+| `activeBreakpoint` | none | Force a breakpoint |
+| `color` | `rgb(255 0 84)` | Grid color |
+| `opacity` | `0.12` | Grid opacity |
+| `visible` | uncontrolled | Controlled visibility |
+| `defaultVisible` | `true` | Initial uncontrolled visibility |
+| `rulers` | `false` | Boolean or ruler options |
+| `guides` | uncontrolled | Controlled guide array |
+| `defaultGuides` | `[]` | Initial uncontrolled guides |
+| `snap` | enabled | Boolean or snapping options |
+| `panel` | `true` | Enable the floating control panel |
+| `shortcut` | `true` | Enable global shortcuts |
+| `container` | none | Scope to an element |
+| `position` | `"fixed"` | Fixed or absolute positioning |
+| `zIndex` | `2147483647` | Overlay stacking level |
+| `storageKey` | `guideframe:visible` | Visibility storage key |
+| `guidesStorageKey` | `guideframe:guides` | Per-route guide storage key |
+| `forceVisibleInProduction` | `false` | Permit mounting when production is detected |
+
+Callbacks include `onVisibleChange(visible)` and `onGuidesChange(guides)`.
+
+## Guide type
+
+```ts
+type Guide = {
+  id: string;
+  axis: "x" | "y";
+  position: number;
+  locked?: boolean;
+};
+```
+
+Positions use document coordinates for page overlays and container-relative coordinates for scoped overlays.
+
+## Core instance API
+
+```ts
+type GuideframeInstance = {
+  update(options: GuideframeOptions): void;
+  destroy(): void;
+  setVisible(visible: boolean): void;
+  isVisible(): boolean;
+  getGuides(): Guide[];
+  setGuides(guides: Guide[]): void;
+  clearGuides(): void;
+};
+```
+
+## React hook
+
+`useGuideframe(options)` provides `visible`, `guides`, `setVisible`, `setGuides`, and `clearGuides` for applications that want to drive GuideFrame from their own interface.
+
+## Runtime and production behavior
+
+The core returns a no-op instance when no DOM exists. It also returns a no-op instance when the runtime exposes `process.env.NODE_ENV === "production"`, unless `forceVisibleInProduction` is enabled. Framework-agnostic browser builds do not all expose `process.env.NODE_ENV`, so this runtime check is not a security boundary.
+
+## Source and project policies
+
+- Source: https://github.com/Dinil-Thilakarathne/guide-frame
+- Contributing: https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/CONTRIBUTING.md
+- Security: https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/SECURITY.md
+- Changelog: https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/CHANGELOG.md
+- License: https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/LICENSE

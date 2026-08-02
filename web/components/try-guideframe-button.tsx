@@ -1,6 +1,7 @@
 "use client";
 
 import posthog from "posthog-js";
+import Button from "@/components/ui/button";
 
 export default function TryGuideframeButton() {
   function toggleGuideframe() {
@@ -23,13 +24,13 @@ export default function TryGuideframeButton() {
   }
 
   return (
-    <button
+    <Button
       type="button"
       onClick={toggleGuideframe}
       aria-keyshortcuts="Meta+G Control+G"
-      className="focus-ring bg-foreground-main text-background hover:bg-foreground-main/85 inline-flex min-h-10 items-center justify-center rounded-full px-5 py-2.5 text-sm font-medium transition-colors duration-200"
+      className="rounded-full"
     >
       Try GuideFrame
-    </button>
+    </Button>
   );
 }

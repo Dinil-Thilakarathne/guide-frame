@@ -1,0 +1,41 @@
+# GuideFrame
+
+> GuideFrame is an open-source browser overlay for Figma-style layout grids, rulers, snapping guides, multi-guide editing, and rendered DOM geometry inspection.
+
+GuideFrame helps designers and engineers inspect spacing and alignment inside a running application. React projects should use `@guideframe/react`; Svelte, Vue, Astro, and vanilla JavaScript projects should use `@guideframe/core`.
+
+## Start here
+
+- [Full agent documentation](/llms-full.txt): installation, behavior, options, shortcuts, and API reference
+- [GuideFrame source](https://github.com/Dinil-Thilakarathne/guide-frame): source code, examples, issues, and contributing guide
+- [React package](https://www.npmjs.com/package/@guideframe/react): React and Next.js integration
+- [Core package](https://www.npmjs.com/package/@guideframe/core): framework-agnostic browser API
+
+## Installation
+
+```bash
+npm install @guideframe/react
+```
+
+```bash
+npm install @guideframe/core
+```
+
+## Package choice
+
+- Use `@guideframe/react` for React, Next.js, Remix, or Vite React.
+- Use `@guideframe/core` for Svelte, Vue, Astro, plain JavaScript, or custom integrations.
+
+## Important behavior
+
+- GuideFrame mounts client-side into an isolated shadow root.
+- Guides snap to rendered DOM elements, grid columns, and other guides.
+- The overlay supports duplication, marquee selection, grouped deletion, keyboard nudging, undo, and per-route persistence.
+- Geometry inspection measures dimensions, padding, gaps, and alignment without activating inspected page controls.
+- Production disabling depends on a build environment that exposes `NODE_ENV=production`; use `forceVisibleInProduction` only for intentional production demos.
+
+## Optional
+
+- [Contributing](https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/CONTRIBUTING.md)
+- [Security policy](https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/SECURITY.md)
+- [Changelog](https://github.com/Dinil-Thilakarathne/guide-frame/blob/main/CHANGELOG.md)
